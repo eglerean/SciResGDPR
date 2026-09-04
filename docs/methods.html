@@ -1,0 +1,660 @@
+<title>Reading 132 Submissions</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #fafafa;
+    --fg: #1c1c1e;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eaf0fe;
+    --code-bg: #f6f7f9;
+    --code-fg: #383a42;
+    --warn: #92400e;
+    --warn-bg: #fffbeb;
+    --warn-line: #fde68a;
+
+    --support: #4C9F70;
+    --oppose: #D1495B;
+    --clarify: #3D7EA6;
+    --propose: #E8A33D;
+    --concern: #B07AA1;
+    --other: #9AA0A6;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16171b;
+      --panel: #1c1e23;
+      --fg: #e7e8ea;
+      --muted: #94969e;
+      --line: #2d2f36;
+      --accent: #6f97fb;
+      --accent-soft: #1c2740;
+      --code-bg: #111318;
+      --code-fg: #d3d5db;
+      --warn: #f5c66d;
+      --warn-bg: #2a2110;
+      --warn-line: #4a3a12;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16171b;
+    --panel: #1c1e23;
+    --fg: #e7e8ea;
+    --muted: #94969e;
+    --line: #2d2f36;
+    --accent: #6f97fb;
+    --accent-soft: #1c2740;
+    --code-bg: #111318;
+    --code-fg: #d3d5db;
+    --warn: #f5c66d;
+    --warn-bg: #2a2110;
+    --warn-line: #4a3a12;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 16.5px;
+    line-height: 1.6;
+  }
+  code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  a { color: var(--accent); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 760px);
+    gap: 56px;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 24px 120px;
+    justify-content: center;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { display: none; }
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 32px;
+    align-self: start;
+    font-size: 13px;
+  }
+  nav.toc .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--line);
+  }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block;
+    padding: 6px 0 6px 14px;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  nav.toc a:hover { color: var(--fg); }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 500; }
+
+  main { min-width: 0; }
+
+  /* Dark intro bar: closed by default (title-strip), full box opens on click. Both states use
+     the same dark colors so the bar never flips to a light background when collapsed. */
+  #page-header { display: none; position: relative; padding: 20px 52px 20px 28px;
+                 background: #14151a; color: #f5f5f7; }
+  body.header-open #page-header { display: block; }
+  body.header-open #title-strip { display: none; }
+  #page-header .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+                           color: #8fb2ff; font-weight: 600; margin-bottom: 6px; }
+  #page-header h1.page-title { font-size: 21px; margin: 0 0 10px; font-weight: 700; color: #fff; }
+  #page-header p.abstract { font-size: 13.5px; color: #c7cad1; max-width: 780px;
+                             margin: 0 0 14px; line-height: 1.55; }
+  #page-header p.abstract a { color: #8fb2ff; }
+  #term-legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12.5px; color: #c7cad1;
+                 margin: 0 0 14px; padding: 10px 14px; background: rgba(255,255,255,0.06);
+                 border-radius: 8px; }
+  #term-legend b { color: #fff; font-weight: 600; }
+  #page-header nav.top-nav { display: flex; gap: 18px; font-size: 13px; margin-bottom: 14px; }
+  #page-header nav.top-nav a { color: #8fb2ff; text-decoration: none; font-weight: 500; }
+  #page-header nav.top-nav a:hover { text-decoration: underline; }
+  #page-header .builder-note { font-size: 12px; color: #9096a3; line-height: 1.55;
+                                max-width: 780px; border-top: 1px solid rgba(255,255,255,0.12);
+                                padding-top: 12px; margin: 0; }
+  #page-header .builder-note a { color: #8fb2ff; }
+  #page-header .builder-note .credit { color: #d7d9de; }
+  #hide-header-btn {
+    position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: #f5f5f7;
+    font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  #hide-header-btn:hover { background: rgba(255,255,255,0.16); }
+
+  /* Collapsed strip - the default state. Dark, same as the open box, never a light bar. */
+  #title-strip {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 11px 20px; background: #14151a; color: #f5f5f7;
+  }
+  #title-strip .back-link { color: #8fb2ff; text-decoration: none; font-size: 13px;
+                             font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  #title-strip .back-link:hover { text-decoration: underline; }
+  #title-strip .t { font-size: 13.5px; font-weight: 600; color: #fff; }
+  #title-strip .sub { font-size: 12.5px; color: #9096a3; }
+  #title-strip .credit { font-size: 12px; color: #9096a3; margin-left: auto; white-space: nowrap; }
+  #title-strip .expand-btn {
+    font-size: 12.5px; color: #8fb2ff; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.22); border-radius: 6px; padding: 4px 10px;
+    cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 28px 0 8px;
+  }
+  .stat-tile {
+    background: var(--panel);
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .stat-tile .v {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .stat-tile .k {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  @media (max-width: 620px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  section { margin-top: 64px; scroll-margin-top: 24px; }
+  section > .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 28px 0 10px;
+  }
+  p { margin: 0 0 16px; }
+  p.lede { font-size: 1.05rem; color: var(--fg); }
+  ul, ol { padding-left: 1.3em; margin: 0 0 16px; }
+  li { margin-bottom: 6px; }
+  strong { font-weight: 600; }
+  em.term { font-style: italic; color: var(--fg); }
+
+  aside.theory {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 20px 0;
+    font-size: 15px;
+  }
+  aside.theory .label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  aside.theory p:last-child { margin-bottom: 0; }
+
+  .before-after {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  @media (max-width: 620px) { .before-after { grid-template-columns: 1fr; } }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: var(--panel);
+  }
+  .card .tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .card.bad .tag { background: #fde8e8; color: #b42318; }
+  .card.good .tag { background: #dcfce7; color: #166534; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .card.bad .tag { background: #3a1a1a; color: #f5a3a3; }
+    :root:not([data-theme="light"]) .card.good .tag { background: #14311f; color: #86e0ab; }
+  }
+  :root[data-theme="dark"] .card.bad .tag { background: #3a1a1a; color: #f5a3a3; }
+  :root[data-theme="dark"] .card.good .tag { background: #14311f; color: #86e0ab; }
+  .card .kw { font-size: 13.5px; color: var(--muted); }
+  .card .kw b { color: var(--fg); font-weight: 500; }
+  .card .stat { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  pre code.hljs { background: transparent; padding: 0; color: var(--code-fg); }
+  .snippet-cap {
+    font-size: 12px;
+    color: var(--muted);
+    margin: -10px 0 16px;
+  }
+  .snippet-cap .mono { font-size: 11.5px; }
+
+  figure { margin: 28px 0; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  .stance-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin: 16px 0 20px;
+    font-size: 13px;
+  }
+  .stance-legend .item { display: flex; align-items: center; gap: 6px; }
+  .stance-legend .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+  .divider { border: none; border-top: 1px solid var(--line); margin: 56px 0; }
+
+  #limitations {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-radius: 12px;
+    padding: 28px 30px 8px;
+    margin-top: 64px;
+  }
+  #limitations > .eyebrow { color: var(--warn); }
+  #limitations h2 { color: var(--warn); }
+  #limitations h2 .icon { margin-right: 8px; }
+  .limit-item {
+    border-top: 1px solid var(--warn-line);
+    padding: 18px 0;
+  }
+  .limit-item:first-of-type { border-top: none; padding-top: 4px; }
+  .limit-item h3 { margin: 0 0 6px; font-size: 1rem; color: var(--fg); }
+  .limit-item p { margin: 0 0 6px; font-size: 14.5px; }
+  .limit-item p:last-child { margin-bottom: 0; }
+
+  footer.colophon {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  footer.colophon a { color: var(--muted); text-decoration: underline; }
+</style>
+
+<div id="page-header">
+  <button id="hide-header-btn" title="Hide this panel" aria-label="Hide this panel">✕</button>
+  <div class="eyebrow">EDPB Consultation — Draft Guidelines 1/2026</div>
+  <h1 class="page-title">How the Theme Explorer Was Built</h1>
+  <p class="abstract">A working note on the pipeline behind the theme explorer for the EDPB's public consultation on Draft Guidelines 1/2026 (GDPR and scientific research) — how it works end to end, and what a reader should still check by hand.</p>
+  <nav class="top-nav">
+    <a href="index.html">← Theme Explorer</a>
+    <a href="dashboard.html">Dashboard →</a>
+  </nav>
+  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code) — <a href="__LINKEDIN_URL__" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+    Please note that I built this to make it easier for me to explore the content of the 132 submissions,
+    I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
+    of the results cannot match what a human would have done with a proper thematic analysis.</p>
+</div>
+<div id="title-strip">
+  <a class="back-link" href="index.html">← Theme Explorer</a>
+  <span class="t">How the Theme Explorer Was Built</span>
+  <span class="sub">Methods: extraction, two-pass LLM coding, and Leiden clustering</span>
+  <span class="credit">Made by Enrico Glerean</span>
+  <button class="expand-btn" id="expand-header-btn">Read what this is about ▾</button>
+</div>
+<div class="layout">
+  <nav class="toc" id="toc">
+    <div class="eyebrow">On this page</div>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#ingestion">1 · Ingestion</a></li>
+      <li><a href="#segmentation">2 · Segmentation</a></li>
+      <li><a href="#coding">3 · Two-pass coding</a></li>
+      <li><a href="#hierarchy">4 · Theme hierarchy</a></li>
+      <li><a href="#explorer">5 · Rendering</a></li>
+      <li><a href="#limitations">Limitations</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="overview">
+      <div class="stat-row">
+        <div class="stat-tile"><div class="v">132</div><div class="k">Submissions</div></div>
+        <div class="stat-tile"><div class="v">7,116</div><div class="k">Paragraphs</div></div>
+        <div class="stat-tile"><div class="v">21</div><div class="k">Languages</div></div>
+        <div class="stat-tile"><div class="v">565</div><div class="k">Canonical codes</div></div>
+        <div class="stat-tile"><div class="v">17</div><div class="k">Themes</div></div>
+      </div>
+
+      <p class="lede">The EDPB's consultation drew 132 written submissions — universities, hospitals, industry associations, national data protection authorities, and individuals — responding in 21 languages to a single question: how should the GDPR apply to scientific research? The goal of this pipeline was to surface the arguments that recur across that corpus without flattening the disagreements inside them.</p>
+
+      <figure>
+        <svg viewBox="0 0 1180 200" role="img" aria-label="Pipeline diagram: PDFs are segmented into paragraphs, paragraphs are opened into atomic codes by an LLM, near-duplicate codes are merged into a canonical codebook, the codebook is clustered into a theme hierarchy, and the hierarchy is rendered as a static explorer.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+            </marker>
+            <marker id="arrow-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" />
+            </marker>
+          </defs>
+
+          <!-- main spine -->
+          <g font-family="Public Sans, sans-serif" font-size="12.5">
+            <!-- boxes -->
+            <g>
+              <rect x="10" y="70" width="130" height="52" rx="8" fill="none" stroke="currentColor" />
+              <text x="75" y="91" text-anchor="middle" fill="currentColor" font-weight="600">132 PDFs</text>
+              <text x="75" y="107" text-anchor="middle" fill="currentColor" opacity="0.6" font-size="11">raw submissions</text>
+            </g>
+
+            <g>
+              <rect x="195" y="70" width="150" height="52" rx="8" fill="none" stroke="currentColor" />
+              <text x="270" y="91" text-anchor="middle" fill="currentColor" font-weight="600">7,116 paragraphs</text>
+              <text x="270" y="107" text-anchor="middle" fill="currentColor" opacity="0.6" font-size="11">segmented units</text>
+            </g>
+
+            <g>
+              <rect x="400" y="70" width="160" height="52" rx="8" stroke="var(--accent)" fill="var(--accent)" fill-opacity="0.08" />
+              <text x="480" y="91" text-anchor="middle" fill="var(--accent)" font-weight="700">6,330 atomic codes</text>
+              <text x="480" y="107" text-anchor="middle" fill="var(--accent)" opacity="0.75" font-size="11">Pass 1: open coding</text>
+            </g>
+
+            <g>
+              <rect x="615" y="70" width="170" height="52" rx="8" stroke="var(--accent)" fill="var(--accent)" fill-opacity="0.08" />
+              <text x="700" y="91" text-anchor="middle" fill="var(--accent)" font-weight="700">565 canonical codes</text>
+              <text x="700" y="107" text-anchor="middle" fill="var(--accent)" opacity="0.75" font-size="11">Pass 2: consolidation</text>
+            </g>
+
+            <g>
+              <rect x="840" y="70" width="160" height="52" rx="8" fill="none" stroke="currentColor" />
+              <text x="920" y="91" text-anchor="middle" fill="currentColor" font-weight="600">17 themes</text>
+              <text x="920" y="107" text-anchor="middle" fill="currentColor" opacity="0.6" font-size="11">97 subthemes, Leiden</text>
+            </g>
+
+            <g>
+              <rect x="1040" y="70" width="130" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <text x="1105" y="91" text-anchor="middle" fill="currentColor" font-weight="700">Explorer</text>
+              <text x="1105" y="107" text-anchor="middle" fill="currentColor" opacity="0.6" font-size="11">static HTML</text>
+            </g>
+
+            <!-- arrows -->
+            <line x1="140" y1="96" x2="192" y2="96" stroke="currentColor" marker-end="url(#arrow)" />
+            <text x="166" y="88" text-anchor="middle" fill="currentColor" opacity="0.7" font-size="10.5">PyMuPDF blocks</text>
+
+            <line x1="345" y1="96" x2="397" y2="96" stroke="var(--accent)" marker-end="url(#arrow-accent)" />
+            <text x="371" y="60" text-anchor="middle" fill="currentColor" opacity="0.75" font-size="10.5">1 paragraph →</text>
+            <text x="371" y="72" text-anchor="middle" fill="currentColor" opacity="0.75" font-size="10.5">0–5 codes</text>
+
+            <line x1="560" y1="96" x2="612" y2="96" stroke="var(--accent)" marker-end="url(#arrow-accent)" />
+            <text x="586" y="60" text-anchor="middle" fill="currentColor" opacity="0.75" font-size="10.5">5,095 phrasings →</text>
+            <text x="586" y="72" text-anchor="middle" fill="currentColor" opacity="0.75" font-size="10.5">Leiden merge</text>
+
+            <line x1="785" y1="96" x2="837" y2="96" stroke="currentColor" marker-end="url(#arrow)" />
+            <text x="811" y="60" text-anchor="middle" fill="currentColor" opacity="0.7" font-size="10.5">Leiden</text>
+            <text x="811" y="72" text-anchor="middle" fill="currentColor" opacity="0.7" font-size="10.5">res. 2 / res. 6</text>
+
+            <line x1="1000" y1="96" x2="1037" y2="96" stroke="currentColor" marker-end="url(#arrow)" />
+            <text x="1018" y="88" text-anchor="middle" fill="currentColor" opacity="0.7" font-size="10.5">static JSON</text>
+
+            <!-- fan-out glyph under codes box -->
+            <g stroke="currentColor" opacity="0.35">
+              <circle cx="270" cy="150" r="2.5" fill="currentColor" stroke="none" />
+              <line x1="270" y1="150" x2="450" y2="150" />
+              <line x1="450" y1="150" x2="450" y2="130" marker-end="url(#arrow)" />
+              <line x1="410" y1="150" x2="410" y2="130" marker-end="url(#arrow)" />
+              <line x1="370" y1="150" x2="370" y2="130" marker-end="url(#arrow)" />
+            </g>
+            <text x="270" y="168" text-anchor="middle" fill="currentColor" opacity="0.55" font-size="10">one paragraph, several claims</text>
+
+            <!-- fan-in glyph into canonical box -->
+            <g stroke="currentColor" opacity="0.35">
+              <line x1="620" y1="150" x2="620" y2="130" marker-end="url(#arrow)" />
+              <line x1="660" y1="150" x2="660" y2="130" marker-end="url(#arrow)" />
+              <line x1="700" y1="150" x2="700" y2="130" marker-end="url(#arrow)" />
+              <line x1="620" y1="150" x2="700" y2="150" />
+              <circle cx="700" cy="150" r="2.5" fill="currentColor" stroke="none" />
+            </g>
+            <text x="660" y="168" text-anchor="middle" fill="currentColor" opacity="0.55" font-size="10">many phrasings, one issue</text>
+          </g>
+
+          <text x="10" y="190" fill="currentColor" opacity="0.45" font-size="11" font-style="italic">Boxes in blue are the two LLM passes; every other step is deterministic Python.</text>
+        </svg>
+        <figcaption>The full pipeline. Two stages call an LLM per paragraph or per code group (blue); everything else — segmentation, embedding, clustering, layout, rendering — is deterministic and reproducible from cached intermediates.</figcaption>
+      </figure>
+    </section>
+
+    <section id="ingestion">
+      <div class="eyebrow">Stage 1</div>
+      <h2>Ingestion and metadata</h2>
+      <p>Each submission arrives as a PDF whose filename already carries the EDPB portal's own submission ID (<code>10744-comments-on-edpb-draft-guidelines...pdf</code>) — reused directly rather than inventing a new numbering scheme. Text is pulled with PyMuPDF, which preserves reading order well enough that no OCR step was needed; every submission in this corpus was a text PDF, not a scan.</p>
+      <p>A separate pass sends each document's first two pages to Claude with a structured-output schema to extract who submitted it: organisation name and type, country, named authors, and a one-sentence topic summary. This runs once per document (132 calls, not 132 × page count) and is cached to disk so re-running the pipeline never re-spends on unchanged input.</p>
+      <p>The resulting <code>metadata.xlsx</code> is what lets every downstream count be sliced by organisation type or country — "72 submissions raised legal fragmentation across member states" is only useful once you can also ask "which 72."</p>
+    </section>
+
+    <section id="segmentation">
+      <div class="eyebrow">Stage 2</div>
+      <h2>From pages to paragraphs</h2>
+      <p>The first design decision was the unit of analysis. A sentence is too fine: consultation responses write in long, compound legal sentences, and splitting them fragments a single argument across several fragments that lose their shared subject. A whole submission is too coarse: a six-page letter routinely raises a dozen unrelated points. The unit chosen was the <em class="term">paragraph</em> — specifically, PyMuPDF's own text-block segmentation, which groups lines by layout rather than by blank-line heuristics that break on inconsistent PDF export formatting.</p>
+      <pre><code class="language-python">def extract_text_blocks(path: Path) -&gt; list[TextBlock]:
+    """Text blocks per page in reading order, as given by PyMuPDF's
+    block layout analysis — a much better paragraph-boundary signal
+    than blank-line splitting."""
+    with fitz.open(path) as doc:
+        for page in doc:
+            for b in page.get_text("blocks"):
+                if b[6] != 0:      # skip image blocks
+                    continue
+                yield TextBlock(text=b[4].strip(), bbox=tuple(b[:4]))</code></pre>
+      <p class="snippet-cap"><span class="mono">scripts/pdf_utils.py</span> — abbreviated</p>
+      <p>A short set of regex heuristics drops obvious boilerplate before it ever reaches an LLM: salutations, page-number footers ("1 (6)"-style markers), signature blocks. This first pass is deliberately conservative — it removes only what pattern-matches with high confidence, leaving the harder cases (letterheads that don't match a fixed pattern, author-title blocks) to be caught later, semantically, in the coding pass itself.</p>
+    </section>
+
+    <section id="coding">
+      <div class="eyebrow">Stage 3</div>
+      <h2>Two-pass concept coding</h2>
+      <p>The fix was to change <em class="term">what gets clustered</em>. Rather than embedding whole paragraphs, an LLM performs a first pass of open coding — naming the individual issues each paragraph raises — and only those short, atomic descriptions are embedded and clustered. This borrows directly from qualitative content analysis: open coding is the standard first move in grounded-theory-style analysis of interview or survey text, where a researcher reads material line by line and assigns short descriptive labels before any categorisation happens. Here an LLM performs that first read at a scale — 7,116 paragraphs — no team of human coders could cover in the time available, with the tradeoff made explicit in the limitations below.</p>
+
+      <h3>Pass 1 — open coding</h3>
+      <p>Paragraphs are sent to Claude Sonnet 5 in small batches with a structured-output schema. Two choices in that schema do most of the work:</p>
+      <ul>
+        <li><strong>Multiple codes per paragraph.</strong> A paragraph gets 0–5 short codes, not one. The paragraph that reads "we support secondary use for research, but access should occur in secure environments and the 30-day deadline is unrealistic" yields three separate codes, each tied back to the same source text.</li>
+        <li><strong>Stance is a separate field from the code.</strong> The <em>issue</em> ("eligibility of commercial researchers") is coded independently of the <em>position</em> taken on it (<span class="mono">support</span> / <span class="mono">oppose</span> / <span class="mono">request_clarification</span> / <span class="mono">propose_change</span> / <span class="mono">concern</span> / <span class="mono">other</span>). This is precisely the distinction raw embedding similarity cannot make.</li>
+      </ul>
+      <p>A third field, <span class="mono">is_substantive</span>, replaces the earlier regex boilerplate filter with a semantic one — false for letterheads, salutations, and courtesy framing, so a document's opening pleasantries never masquerade as an argument about the Guidelines.</p>
+      <pre><code class="language-python">class Code(BaseModel):
+    code: str                        # short noun phrase, English, issue not position
+    stance: Literal[STANCES]         # support | oppose | request_clarification | ...
+    claim: str                       # one sentence, the submitter's actual position
+    target: Optional[str]            # e.g. "Article 89(1)", or null
+
+class ParagraphCoding(BaseModel):
+    index: int
+    is_substantive: bool             # false for letterheads, salutations, etc.
+    codes: list[Code]                # 0–5 atomic issues, not forced to exactly one</code></pre>
+      <p class="snippet-cap"><span class="mono">scripts/extract_codes.py</span></p>
+      <p>Across the corpus, 66.8% of paragraphs were judged substantive and produced 6,330 codes from 5,095 distinct raw phrasings. Long paragraphs (over 1,000 characters) average 2.6 codes each — a submission's argument is routinely more than one issue, which is exactly why the coding step assigns 0–5 codes rather than forcing every paragraph into a single label.</p>
+
+      <h3>Pass 2 — codebook consolidation</h3>
+      <p>Open coding is deliberately generous: the same underlying issue gets phrased differently every time ("fees for data access," "charging for access," "cost recovery for data access"). A second pass merges these. The 5,095 raw phrasings are embedded with a multilingual model, connected in a k-nearest-neighbour graph, and partitioned with the <em class="term">Leiden</em> community-detection algorithm at a resolution tuned to merge only near-duplicates — then an LLM writes one canonical label per merged group.</p>
+      <aside class="theory">
+        <div class="label">On Leiden's resolution parameter</div>
+        <p>Leiden optimises a modularity-style objective whose resolution parameter trades off community count against community size — but that trade-off is not scale-invariant. A resolution validated on a 46-code test sample merged the full 5,095-phrasing graph into just 43 groups, one of which combined "broad and dynamic consent" with "academic credential requirements for researchers" — clearly two different issues sharing a canonical label. The fix wasn't a different formula; it was sweeping resolution values against group-size statistics and spot-checking group contents on the actual corpus before committing. The value used here (80) was chosen exactly that way, and is documented in the script as corpus-specific rather than a universal default.</p>
+      </aside>
+      <pre><code class="language-python">def group_cache_key(phrases: list[str]) -&gt; str:
+    """Content-derived cache key. Leiden's group ids are reassigned
+    from scratch on every run — caching a name under the bare integer
+    id let a name from one run silently leak onto an unrelated group
+    with the same id in the next run. Hashing the group's own member
+    phrases ties the cached name to content, not position."""
+    digest = hashlib.sha256("\n".join(sorted(phrases)).encode()).hexdigest()
+    return digest[:16]</code></pre>
+      <p class="snippet-cap"><span class="mono">scripts/build_codebook.py</span> — the fix for a real caching bug hit while building this, kept here as documentation</p>
+      <p>The result is 565 canonical codes, each an average of 8 merged phrasings (up to 27 for the largest), used as the atomic unit for everything downstream.</p>
+    </section>
+
+    <section id="hierarchy">
+      <div class="eyebrow">Stage 4</div>
+      <h2>Building the theme hierarchy</h2>
+      <p>The 565 canonical codes are still too many to browse flat. The same Leiden clustering used for consolidation is run again, this time on the canonical codes' own embeddings, at <em class="term">two</em> resolutions in one pass: a low resolution groups codes into broad themes, a higher resolution groups the same codes into finer subthemes, and each subtheme is nested under whichever theme holds the majority of its members. The canonical codes themselves form the third and final level.</p>
+      <pre><code class="language-python">level1 = leiden_partition(embeddings, k=15, resolution=2)   # 17 themes
+level2 = leiden_partition(embeddings, k=15, resolution=6)   # 97 subthemes
+sub_to_theme = nest_by_containment(level2, level1)           # majority containment</code></pre>
+      <p class="snippet-cap"><span class="mono">scripts/build_themes.py</span></p>
+      <p>Both resolutions were, again, swept and content-checked rather than assumed: the values first tried (carried over from a small synthetic test) collapsed 565 codes into just two themes, one of which — "Scientific Research Definition and Compliance" — silently absorbed 130 submissions' worth of unrelated argument. The final values (2 and 6) were chosen only after inspecting the actual member codes of candidate groupings at several resolutions and confirming each read as one coherent subject.</p>
+      <p>An LLM names every theme and subtheme from its member codes, using the same content-hashed caching discipline as the codebook pass. The result: <strong>17 themes, 97 subthemes, 565 codes</strong> — small enough to read in one sitting, granular enough that "broad consent" and "consent as legal basis" stay distinct subjects rather than collapsing into one undifferentiated "consent" bucket.</p>
+      <div class="stance-legend">
+        <span class="item"><span class="dot" style="background:var(--support)"></span>support</span>
+        <span class="item"><span class="dot" style="background:var(--oppose)"></span>oppose</span>
+        <span class="item"><span class="dot" style="background:var(--clarify)"></span>request clarification</span>
+        <span class="item"><span class="dot" style="background:var(--propose)"></span>propose change</span>
+        <span class="item"><span class="dot" style="background:var(--concern)"></span>concern</span>
+        <span class="item"><span class="dot" style="background:var(--other)"></span>other</span>
+      </div>
+      <p>Across the whole corpus, the stance distribution skews toward <span class="mono">propose_change</span> (2,200 codes) and <span class="mono">concern</span> (1,539) over flat <span class="mono">support</span> (545) or <span class="mono">oppose</span> (447) — consistent with what a public consultation should produce: stakeholders mostly suggest edits or flag risks rather than simply approving or rejecting a draft outright.</p>
+    </section>
+
+    <section id="explorer">
+      <div class="eyebrow">Stage 5</div>
+      <h2>Rendering the explorer</h2>
+      <p>The theme → subtheme → code tree, with every leaf carrying its stance breakdown, contributing organisations, countries, cited provisions, and representative quotes linked back to source paragraphs, is serialised once to a single JSON tree and embedded directly in a static HTML page. The page itself does no computation at load time — no server, no client-side clustering or layout — which is what keeps it fast to open regardless of corpus size. Clicking a node in the left-hand tree simply looks up and renders its pre-computed slice of the same JSON.</p>
+    </section>
+
+    <section id="limitations">
+      <div class="eyebrow">Read before citing</div>
+      <h2><span class="icon">⚠</span>Limitations and required human quality control</h2>
+      <p>This is a machine-generated reading of the corpus, produced to make 7,116 paragraphs navigable — it is not a substitute for reading the original submissions, and none of the counts, labels, or quotes below should be relied on for a regulatory or legal argument without checking the source PDF first.</p>
+
+      <div class="limit-item">
+        <h3>Extraction errors happen, and were caught, not eliminated</h3>
+        <p>Two concrete bugs surfaced while building this pipeline: adaptive-thinking token usage occasionally truncated a batch's JSON output mid-string, and — more seriously — an early caching scheme let an LLM-generated label from one run silently attach to an unrelated group in a later run (a group about "general endorsement of guidelines" was briefly labelled "scope of scientific research definition"). Both are fixed in the code kept here, but their existence is the point: an LLM pipeline like this one will produce plausible-looking wrong output that passes every automated check. Spot-check, don't assume.</p>
+      </div>
+
+      <div class="limit-item">
+        <h3>Clustering parameters are corpus-specific, not universal constants</h3>
+        <p>Every Leiden resolution value in this pipeline was chosen by sweeping candidate values against this specific corpus's embeddings and reading the resulting groups — not by formula. If the corpus grows, shrinks, or changes composition materially, these values (codebook resolution 80; theme resolutions 2 and 6) will very likely need re-tuning, and skipping that step reproduces the exact over-merging failure documented above.</p>
+      </div>
+
+      <div class="limit-item">
+        <h3>A handful of canonical codes share an identical label</h3>
+        <p>The LLM naming pass occasionally converges on the same short label for two genuinely distinct Leiden groups (three separate facets of "broad consent," for instance, each legitimately named "broad consent" on independent review). This is not the caching bug above — it is expected behaviour, not an error — but a reader browsing <span class="mono">codebook.xlsx</span> should know that an identical row label does not always mean an identical group.</p>
+      </div>
+
+      <div class="limit-item">
+        <h3>Stance counts are not a vote tally</h3>
+        <p>A single detailed submission can contribute dozens of codes; a one-page individual letter contributes a handful. Theme and stance counts in this explorer measure <em>volume of argument</em>, not one-organisation-one-vote — a theme raised by 108 submissions is not necessarily more important to the eventual Guidelines than one raised by 40, if those 40 are the regulators and hospitals whose compliance is actually at stake.</p>
+      </div>
+
+      <div class="limit-item">
+        <h3>Translation and coding quality on non-English text is not independently verified</h3>
+        <p>21 languages appear in the corpus; every code is written in English regardless of source language, by instruction to the coding model, to keep the taxonomy unified. That step's accuracy on Danish, Italian, Portuguese, and other non-English submissions has not been checked against a human bilingual reviewer.</p>
+      </div>
+
+      <div class="limit-item">
+        <h3>Self-selection in who responded</h3>
+        <p>These 132 submissions are self-selected: organisations with the legal capacity and institutional motivation to respond to an EU public consultation. Theme prevalence in this explorer reflects who chose to comment, not the full population of stakeholders affected by the Guidelines.</p>
+      </div>
+
+      <div class="limit-item">
+        <h3>Not fully deterministic</h3>
+        <p>LLM outputs are not guaranteed identical across reruns even at the same prompt and temperature. Cached intermediates (raw codes, canonical names, theme names) make this specific run reproducible as published, but regenerating from scratch may shift individual code phrasings or group boundaries at the margins.</p>
+      </div>
+    </section>
+
+    <footer class="colophon">
+      Pipeline: PyMuPDF → Claude Sonnet 5 (structured output, two coding passes) → multilingual-e5-large embeddings → Leiden (igraph/leidenalg) → static HTML. Source scripts in <span class="mono">scripts/</span>; data artifacts in <span class="mono">output/</span>; published pages in <span class="mono">docs/</span>.
+    </footer>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+  hljs.highlightAll();
+
+  document.getElementById('hide-header-btn').onclick = () => document.body.classList.remove('header-open');
+  document.getElementById('expand-header-btn').onclick = () => document.body.classList.add('header-open');
+
+  // Highlight the active TOC entry as the reader scrolls.
+  const sections = [...document.querySelectorAll('main section[id]')];
+  const links = [...document.querySelectorAll('nav.toc a')];
+  const byId = Object.fromEntries(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const link = byId[entry.target.id];
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>EDPB consultation — stance dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1c1e; --muted: #6b7280; --line: #e5e7eb;
+    --panel: #fafafa; --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  /* Dark intro bar: closed by default (title-strip), full box opens on click. Both states use
+     the same dark colors so the bar never flips to a light background when collapsed. */
+  #page-header { display: none; position: relative; padding: 20px 52px 20px 28px;
+                 background: #14151a; color: #f5f5f7; }
+  body.header-open #page-header { display: block; }
+  body.header-open #title-strip { display: none; }
+  #page-header .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+                           color: #8fb2ff; font-weight: 600; margin-bottom: 6px; }
+  #page-header h1.page-title { font-size: 21px; margin: 0 0 10px; font-weight: 700; color: #fff; }
+  #page-header p.abstract { font-size: 13.5px; color: #c7cad1; max-width: 780px;
+                             margin: 0 0 14px; line-height: 1.55; }
+  #page-header p.abstract a { color: #8fb2ff; }
+  #term-legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12.5px; color: #c7cad1;
+                 margin: 0 0 14px; padding: 10px 14px; background: rgba(255,255,255,0.06);
+                 border-radius: 8px; }
+  #term-legend b { color: #fff; font-weight: 600; }
+  #page-header nav.top-nav { display: flex; gap: 18px; font-size: 13px; margin-bottom: 14px; }
+  #page-header nav.top-nav a { color: #8fb2ff; text-decoration: none; font-weight: 500; }
+  #page-header nav.top-nav a:hover { text-decoration: underline; }
+  #page-header .builder-note { font-size: 12px; color: #9096a3; line-height: 1.55;
+                                max-width: 780px; border-top: 1px solid rgba(255,255,255,0.12);
+                                padding-top: 12px; margin: 0; }
+  #page-header .builder-note a { color: #8fb2ff; }
+  #page-header .builder-note .credit { color: #d7d9de; }
+  #hide-header-btn {
+    position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: #f5f5f7;
+    font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  #hide-header-btn:hover { background: rgba(255,255,255,0.16); }
+
+  /* Collapsed strip - the default state. Dark, same as the open box, never a light bar. */
+  #title-strip {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 11px 20px; background: #14151a; color: #f5f5f7;
+  }
+  #title-strip .back-link { color: #8fb2ff; text-decoration: none; font-size: 13px;
+                             font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  #title-strip .back-link:hover { text-decoration: underline; }
+  #title-strip .t { font-size: 13.5px; font-weight: 600; color: #fff; }
+  #title-strip .sub { font-size: 12.5px; color: #9096a3; }
+  #title-strip .credit { font-size: 12px; color: #9096a3; margin-left: auto; white-space: nowrap; }
+  #title-strip .expand-btn {
+    font-size: 12.5px; color: #8fb2ff; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.22); border-radius: 6px; padding: 4px 10px;
+    cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 28px 80px; }
+  section { margin-top: 36px; }
+  section h2 { font-size: 15px; margin: 0 0 4px; }
+  section p.sub { font-size: 12.5px; color: var(--muted); margin: 0 0 14px; }
+  select { font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+           background: var(--panel); color: var(--fg); }
+  #theme-chart, #subtheme-chart { width: 100%; }
+</style>
+</head>
+<body>
+<div id="page-header">
+  <button id="hide-header-btn" title="Hide this panel" aria-label="Hide this panel">✕</button>
+  <div class="eyebrow">EDPB Consultation — Draft Guidelines 1/2026</div>
+  <h1 class="page-title">Stance Dashboard</h1>
+  <p class="abstract">Every theme's stance breakdown (support / oppose / request clarification / propose change / concern / other) in one view, instead of clicking through each theme individually in the explorer. Bar length is submissions raising that theme; segments show how those submissions were coded. Select a theme below to see the same breakdown for its subthemes.</p>
+  <div id="term-legend">
+    <span><b>Theme</b> — a broad topic area · 17 total</span>
+    <span><b>Subtheme</b> — a more specific grouping within a theme · 97 total</span>
+    <span><b>Code</b> — one specific issue or argument, the atomic unit read from the text · 565 total</span>
+  </div>
+  <nav class="top-nav">
+    <a class="back-link" href="index.html">← Theme Explorer</a>
+    <a href="methods.html">Methods →</a>
+  </nav>
+  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code) — <a href="__LINKEDIN_URL_PLACEHOLDER__" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+    Please note that I built this to make it easier for me to explore the content of the 132 submissions,
+    I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
+    of the results cannot match what a human would have done with a proper thematic analysis.</p>
+</div>
+<div id="title-strip">
+  <a class="back-link" href="index.html">← Theme Explorer</a> <span class="t">Stance Dashboard</span>
+  <span class="sub">Support/oppose/concern breakdown for all 17 themes in one view</span>
+  <span class="credit">Made by Enrico Glerean</span>
+  <button class="expand-btn" id="expand-header-btn">Read what this is about ▾</button>
+</div>
+<main>
+  <section>
+    <h2>All themes</h2>
+    <p class="sub">Ordered by number of submissions raising the theme.</p>
+    <div id="theme-chart"></div>
+  </section>
+
+  <section>
+    <h2>Subthemes within a theme</h2>
+    <p class="sub"><label for="theme-select">Theme:</label> <select id="theme-select"></select></p>
+    <div id="subtheme-chart"></div>
+  </section>
+</main>
+
+<script id="data" type="application/json">{"themes": [{"theme": "Defining and Scoping Research Purpose", "pct_of_submissions": 40, "n_submissions": 52, "n_paragraphs": 137, "support": 11, "oppose": 13, "request_clarification": 37, "propose_change": 42, "concern": 27, "other": 8}, {"theme": "Proportionality and Compliance Burden in Research", "pct_of_submissions": 48, "n_submissions": 62, "n_paragraphs": 170, "support": 6, "oppose": 14, "request_clarification": 22, "propose_change": 61, "concern": 66, "other": 8}, {"theme": "Anonymisation vs Pseudonymisation of Research Data", "pct_of_submissions": 55, "n_submissions": 71, "n_paragraphs": 311, "support": 18, "oppose": 22, "request_clarification": 68, "propose_change": 120, "concern": 107, "other": 6}, {"theme": "Erasure and Research Exemptions", "pct_of_submissions": 55, "n_submissions": 72, "n_paragraphs": 353, "support": 22, "oppose": 32, "request_clarification": 52, "propose_change": 144, "concern": 113, "other": 20}, {"theme": "Article 89 Safeguards for Research", "pct_of_submissions": 57, "n_submissions": 74, "n_paragraphs": 265, "support": 36, "oppose": 8, "request_clarification": 43, "propose_change": 142, "concern": 30, "other": 12}, {"theme": "GDPR Interplay with EHDS and Ethics Review", "pct_of_submissions": 58, "n_submissions": 75, "n_paragraphs": 384, "support": 25, "oppose": 13, "request_clarification": 108, "propose_change": 132, "concern": 105, "other": 18}, {"theme": "Data Subject Identification and Rights in Research", "pct_of_submissions": 58, "n_submissions": 76, "n_paragraphs": 307, "support": 12, "oppose": 34, "request_clarification": 65, "propose_change": 109, "concern": 94, "other": 12}, {"theme": "Controller and Joint Controllership Determination", "pct_of_submissions": 59, "n_submissions": 77, "n_paragraphs": 417, "support": 37, "oppose": 22, "request_clarification": 145, "propose_change": 185, "concern": 88, "other": 21}, {"theme": "Transparency and Information Obligations in Research", "pct_of_submissions": 60, "n_submissions": 78, "n_paragraphs": 281, "support": 15, "oppose": 21, "request_clarification": 64, "propose_change": 91, "concern": 92, "other": 17}, {"theme": "Broad Consent in Scientific Research", "pct_of_submissions": 64, "n_submissions": 83, "n_paragraphs": 313, "support": 50, "oppose": 48, "request_clarification": 71, "propose_change": 114, "concern": 58, "other": 7}, {"theme": "Consent Requirements in Research", "pct_of_submissions": 65, "n_submissions": 85, "n_paragraphs": 360, "support": 14, "oppose": 43, "request_clarification": 85, "propose_change": 116, "concern": 115, "other": 17}, {"theme": "Legal Bases for Research Processing", "pct_of_submissions": 66, "n_submissions": 86, "n_paragraphs": 306, "support": 35, "oppose": 16, "request_clarification": 74, "propose_change": 101, "concern": 81, "other": 18}, {"theme": "Data Retention and Research Infrastructure Governance", "pct_of_submissions": 68, "n_submissions": 89, "n_paragraphs": 467, "support": 52, "oppose": 22, "request_clarification": 108, "propose_change": 160, "concern": 119, "other": 25}, {"theme": "Legal Basis for Further Processing", "pct_of_submissions": 70, "n_submissions": 91, "n_paragraphs": 393, "support": 59, "oppose": 26, "request_clarification": 97, "propose_change": 124, "concern": 81, "other": 28}, {"theme": "Clarity, Terminology, and Practical Examples", "pct_of_submissions": 70, "n_submissions": 91, "n_paragraphs": 313, "support": 45, "oppose": 18, "request_clarification": 56, "propose_change": 137, "concern": 63, "other": 3}, {"theme": "Legal Coherence and Cross-Border Fragmentation", "pct_of_submissions": 72, "n_submissions": 94, "n_paragraphs": 426, "support": 25, "oppose": 29, "request_clarification": 105, "propose_change": 126, "concern": 144, "other": 24}, {"theme": "Defining and Qualifying Scientific Research", "pct_of_submissions": 83, "n_submissions": 108, "n_paragraphs": 686, "support": 83, "oppose": 66, "request_clarification": 112, "propose_change": 296, "concern": 156, "other": 43}], "subthemes_by_theme": {"Anonymisation vs Pseudonymisation of Research Data": [{"subtheme": "Secondary Use of Health Data", "n_submissions": 2, "support": 0, "oppose": 0, "request_clarification": 0, "propose_change": 12, "concern": 0, "other": 0}, {"subtheme": "Research Data Lifecycle Management", "n_submissions": 2, "support": 0, "oppose": 0, "request_clarification": 2, "propose_change": 0, "concern": 0, "other": 1}, {"subtheme": "GDPR Interaction With Other Research Frameworks", "n_submissions": 4, "support": 0, "oppose": 0, "request_clarification": 3, "propose_change": 2, "concern": 2, "other": 1}, {"subtheme": "Clarity of Guidance and Terminology", "n_submissions": 6, "support": 2, "oppose": 1, "request_clarification": 0, "propose_change": 1, "concern": 4, "other": 0}, {"subtheme": "Transparency and Information Obligations in Research", "n_submissions": 7, "support": 0, "oppose": 0, "request_clarification": 4, "propose_change": 2, "concern": 3, "other": 0}, {"subtheme": "Article 89 Safeguards for Research", "n_submissions": 10, "support": 1, "oppose": 0, "request_clarification": 0, "propose_change": 10, "concern": 3, "other": 0}, {"subtheme": "Pseudonymisation of Research Data", "n_submissions": 43, "support": 9, "oppose": 12, "request_clarification": 31, "propose_change": 46, "concern": 30, "other": 2}, {"subtheme": "Anonymisation vs Pseudonymisation in Research", "n_submissions": 52, "support": 6, "oppose": 9, "request_clarification": 28, "propose_change": 47, "concern": 65, "other": 2}], "Article 89 Safeguards for Research": [{"subtheme": "Clarity of Guidance and Terminology", "n_submissions": 4, "support": 1, "oppose": 0, "request_clarification": 0, "propose_change": 4, "concern": 0, "other": 1}, {"subtheme": "Ethics Committee Review and DPA Coordination", "n_submissions": 9, "support": 3, "oppose": 0, "request_clarification": 0, "propose_change": 8, "concern": 1, "other": 0}, {"subtheme": "Article 89 Safeguards for Research", "n_submissions": 72, "support": 32, "oppose": 8, "request_clarification": 43, "propose_change": 130, "concern": 29, "other": 11}], "Broad Consent in Scientific Research": [{"subtheme": "Compatibility of Further Research Use", "n_submissions": 2, "support": 2, "oppose": 2, "request_clarification": 0, "propose_change": 5, "concern": 2, "other": 0}, {"subtheme": "Research Exemptions and Their Scope", "n_submissions": 4, "support": 0, "oppose": 1, "request_clarification": 0, "propose_change": 2, "concern": 2, "other": 0}, {"subtheme": "Defining Research Purpose Scope", "n_submissions": 7, "support": 0, "oppose": 1, "request_clarification": 0, "propose_change": 13, "concern": 1, "other": 0}, {"subtheme": "Defining the Scope of Scientific Research", "n_submissions": 18, "support": 2, "oppose": 3, "request_clarification": 2, "propose_change": 17, "concern": 2, "other": 1}, {"subtheme": "Broad Consent for Research", "n_submissions": 74, "support": 46, "oppose": 41, "request_clarification": 69, "propose_change": 77, "concern": 51, "other": 6}], "Clarity, Terminology, and Practical Examples": [{"subtheme": "Compliance Burden in Research", "n_submissions": 5, "support": 0, "oppose": 2, "request_clarification": 0, "propose_change": 2, "concern": 2, "other": 1}, {"subtheme": "Indicative Factors for Research", "n_submissions": 6, "support": 0, "oppose": 0, "request_clarification": 3, "propose_change": 3, "concern": 0, "other": 0}, {"subtheme": "Defining Research Purpose Scope", "n_submissions": 8, "support": 1, "oppose": 2, "request_clarification": 0, "propose_change": 10, "concern": 4, "other": 0}, {"subtheme": "Criteria Defining Scientific Research", "n_submissions": 8, "support": 2, "oppose": 0, "request_clarification": 1, "propose_change": 6, "concern": 1, "other": 0}, {"subtheme": "Clarity of Guidance and Terminology", "n_submissions": 38, "support": 6, "oppose": 3, "request_clarification": 21, "propose_change": 26, "concern": 18, "other": 1}, {"subtheme": "Practical Examples and Guidance Clarity", "n_submissions": 74, "support": 36, "oppose": 11, "request_clarification": 31, "propose_change": 90, "concern": 38, "other": 1}], "Consent Requirements in Research": [{"subtheme": "Transparency and Information Obligations in Research", "n_submissions": 2, "support": 1, "oppose": 0, "request_clarification": 1, "propose_change": 0, "concern": 0, "other": 0}, {"subtheme": "Legal Basis and Balancing Test Assessments", "n_submissions": 3, "support": 0, "oppose": 2, "request_clarification": 0, "propose_change": 2, "concern": 3, "other": 0}, {"subtheme": "Consent Feasibility and Confidentiality in Research", "n_submissions": 5, "support": 0, "oppose": 1, "request_clarification": 0, "propose_change": 0, "concern": 4, "other": 0}, {"subtheme": "Manifestly Public Data & Consent Basis", "n_submissions": 7, "support": 1, "oppose": 6, "request_clarification": 1, "propose_change": 4, "concern": 1, "other": 1}, {"subtheme": "Transparency Obligations In Research", "n_submissions": 8, "support": 1, "oppose": 1, "request_clarification": 2, "propose_change": 3, "concern": 3, "other": 0}, {"subtheme": "Ethics Committee Review and DPA Coordination", "n_submissions": 8, "support": 1, "oppose": 1, "request_clarification": 5, "propose_change": 10, "concern": 1, "other": 2}, {"subtheme": "Proportionality in Compliance Obligations", "n_submissions": 12, "support": 0, "oppose": 0, "request_clarification": 3, "propose_change": 7, "concern": 4, "other": 0}, {"subtheme": "Consent as Legal Basis for Research", "n_submissions": 29, "support": 3, "oppose": 10, "request_clarification": 7, "propose_change": 9, "concern": 24, "other": 2}, {"subtheme": "Consent Mechanisms in Research", "n_submissions": 69, "support": 7, "oppose": 22, "request_clarification": 66, "propose_change": 81, "concern": 75, "other": 12}], "Controller and Joint Controllership Determination": [{"subtheme": "Compliance Burden in Research", "n_submissions": 4, "support": 0, "oppose": 0, "request_clarification": 0, "propose_change": 3, "concern": 1, "other": 0}, {"subtheme": "Ethics Committee Review and DPA Coordination", "n_submissions": 5, "support": 0, "oppose": 0, "request_clarification": 8, "propose_change": 10, "concern": 0, "other": 0}, {"subtheme": "Re-identification Risk and Data Subject Notification", "n_submissions": 6, "support": 0, "oppose": 0, "request_clarification": 9, "propose_change": 2, "concern": 1, "other": 0}, {"subtheme": "Compatibility of Further Research Use", "n_submissions": 9, "support": 2, "oppose": 1, "request_clarification": 2, "propose_change": 3, "concern": 2, "other": 0}, {"subtheme": "Data Subject Rights Allocation in Research", "n_submissions": 12, "support": 0, "oppose": 0, "request_clarification": 6, "propose_change": 9, "concern": 1, "other": 0}, {"subtheme": "Controllership Determination in Research", "n_submissions": 52, "support": 22, "oppose": 15, "request_clarification": 46, "propose_change": 81, "concern": 33, "other": 16}, {"subtheme": "Controller/Processor Role Allocation in Research", "n_submissions": 60, "support": 13, "oppose": 6, "request_clarification": 74, "propose_change": 77, "concern": 50, "other": 5}], "Data Retention and Research Infrastructure Governance": [{"subtheme": "Data Subject Rights Allocation in Research", "n_submissions": 9, "support": 3, "oppose": 0, "request_clarification": 7, "propose_change": 6, "concern": 6, "other": 0}, {"subtheme": "Scope of Commercial and Non-Academic Research", "n_submissions": 11, "support": 2, "oppose": 0, "request_clarification": 2, "propose_change": 1, "concern": 12, "other": 0}, {"subtheme": "Defining Research Purpose Scope", "n_submissions": 11, "support": 1, "oppose": 0, "request_clarification": 10, "propose_change": 2, "concern": 0, "other": 0}, {"subtheme": "Compatibility of Further Research Use", "n_submissions": 14, "support": 1, "oppose": 3, "request_clarification": 5, "propose_change": 4, "concern": 4, "other": 1}, {"subtheme": "Balancing Data Protection With Research Needs", "n_submissions": 26, "support": 3, "oppose": 2, "request_clarification": 4, "propose_change": 18, "concern": 9, "other": 6}, {"subtheme": "Research Data Infrastructure Governance", "n_submissions": 31, "support": 8, "oppose": 5, "request_clarification": 13, "propose_change": 49, "concern": 20, "other": 9}, {"subtheme": "Data Retention Periods and Special Data Types", "n_submissions": 40, "support": 11, "oppose": 8, "request_clarification": 24, "propose_change": 36, "concern": 25, "other": 3}, {"subtheme": "Research Data Lifecycle Management", "n_submissions": 57, "support": 23, "oppose": 4, "request_clarification": 43, "propose_change": 44, "concern": 43, "other": 6}], "Data Subject Identification and Rights in Research": [{"subtheme": "Legal Basis and Balancing Test Assessments", "n_submissions": 4, "support": 0, "oppose": 6, "request_clarification": 3, "propose_change": 2, "concern": 6, "other": 0}, {"subtheme": "AI and Genetic Research Guidance", "n_submissions": 4, "support": 0, "oppose": 0, "request_clarification": 5, "propose_change": 3, "concern": 0, "other": 0}, {"subtheme": "Data Retention Periods and Special Data Types", "n_submissions": 8, "support": 2, "oppose": 1, "request_clarification": 7, "propose_change": 4, "concern": 5, "other": 0}, {"subtheme": "Manifestly Public Data & Consent Basis", "n_submissions": 12, "support": 0, "oppose": 2, "request_clarification": 2, "propose_change": 6, "concern": 2, "other": 3}, {"subtheme": "Data Subject Rights Allocation in Research", "n_submissions": 26, "support": 5, "oppose": 6, "request_clarification": 9, "propose_change": 31, "concern": 19, "other": 3}, {"subtheme": "Re-identification Risk and Data Subject Notification", "n_submissions": 60, "support": 5, "oppose": 19, "request_clarification": 39, "propose_change": 63, "concern": 62, "other": 6}], "Defining and Qualifying Scientific Research": [{"subtheme": "Compatibility of Further Research Use", "n_submissions": 8, "support": 0, "oppose": 0, "request_clarification": 1, "propose_change": 4, "concern": 2, "other": 4}, {"subtheme": "Research Exemptions and Their Scope", "n_submissions": 9, "support": 1, "oppose": 0, "request_clarification": 4, "propose_change": 2, "concern": 0, "other": 3}, {"subtheme": "Balancing Data Protection With Research Needs", "n_submissions": 9, "support": 2, "oppose": 0, "request_clarification": 0, "propose_change": 5, "concern": 2, "other": 0}, {"subtheme": "Research Data Infrastructure Governance", "n_submissions": 10, "support": 3, "oppose": 1, "request_clarification": 1, "propose_change": 5, "concern": 7, "other": 1}, {"subtheme": "AI and Genetic Research Guidance", "n_submissions": 24, "support": 5, "oppose": 4, "request_clarification": 4, "propose_change": 16, "concern": 10, "other": 0}, {"subtheme": "Scope of Commercial and Non-Academic Research", "n_submissions": 34, "support": 16, "oppose": 7, "request_clarification": 7, "propose_change": 31, "concern": 20, "other": 7}, {"subtheme": "Indicative Factors for Research", "n_submissions": 40, "support": 3, "oppose": 16, "request_clarification": 13, "propose_change": 50, "concern": 24, "other": 3}, {"subtheme": "Criteria Defining Scientific Research", "n_submissions": 40, "support": 7, "oppose": 7, "request_clarification": 17, "propose_change": 32, "concern": 17, "other": 5}, {"subtheme": "Criteria Qualifying Genuine Scientific Research", "n_submissions": 60, "support": 10, "oppose": 17, "request_clarification": 27, "propose_change": 70, "concern": 37, "other": 7}, {"subtheme": "Defining the Scope of Scientific Research", "n_submissions": 73, "support": 36, "oppose": 14, "request_clarification": 38, "propose_change": 81, "concern": 37, "other": 13}], "Defining and Scoping Research Purpose": [{"subtheme": "Compatibility of Further Research Use", "n_submissions": 4, "support": 1, "oppose": 0, "request_clarification": 1, "propose_change": 4, "concern": 1, "other": 1}, {"subtheme": "Scope of Commercial and Non-Academic Research", "n_submissions": 13, "support": 1, "oppose": 0, "request_clarification": 11, "propose_change": 5, "concern": 3, "other": 1}, {"subtheme": "Defining Research Purpose Scope", "n_submissions": 45, "support": 9, "oppose": 13, "request_clarification": 25, "propose_change": 33, "concern": 23, "other": 6}], "Erasure and Research Exemptions": [{"subtheme": "Restrictive Scope of Research Provisions", "n_submissions": 14, "support": 2, "oppose": 2, "request_clarification": 3, "propose_change": 6, "concern": 13, "other": 2}, {"subtheme": "Research Exemptions and Their Scope", "n_submissions": 43, "support": 11, "oppose": 12, "request_clarification": 20, "propose_change": 40, "concern": 43, "other": 4}, {"subtheme": "Erasure and Objection Rights in Research", "n_submissions": 50, "support": 9, "oppose": 18, "request_clarification": 29, "propose_change": 98, "concern": 57, "other": 14}], "GDPR Interplay with EHDS and Ethics Review": [{"subtheme": "Ethics Committee Review and DPA Coordination", "n_submissions": 29, "support": 2, "oppose": 4, "request_clarification": 17, "propose_change": 38, "concern": 20, "other": 1}, {"subtheme": "GDPR-EHDS Interaction", "n_submissions": 41, "support": 5, "oppose": 6, "request_clarification": 46, "propose_change": 21, "concern": 22, "other": 7}, {"subtheme": "GDPR Interaction With Other Research Frameworks", "n_submissions": 57, "support": 18, "oppose": 3, "request_clarification": 45, "propose_change": 73, "concern": 63, "other": 10}], "Legal Bases for Research Processing": [{"subtheme": "Manifestly Public Data & Consent Basis", "n_submissions": 4, "support": 0, "oppose": 0, "request_clarification": 2, "propose_change": 2, "concern": 1, "other": 0}, {"subtheme": "Legal Basis and Balancing Test Assessments", "n_submissions": 16, "support": 1, "oppose": 3, "request_clarification": 4, "propose_change": 8, "concern": 8, "other": 2}, {"subtheme": "Criteria Defining Scientific Research", "n_submissions": 16, "support": 0, "oppose": 4, "request_clarification": 3, "propose_change": 14, "concern": 9, "other": 0}, {"subtheme": "Legal Bases for Research Processing", "n_submissions": 50, "support": 23, "oppose": 4, "request_clarification": 38, "propose_change": 47, "concern": 40, "other": 7}, {"subtheme": "Legal Bases And Frameworks For Research", "n_submissions": 51, "support": 11, "oppose": 5, "request_clarification": 27, "propose_change": 30, "concern": 23, "other": 9}], "Legal Basis for Further Processing": [{"subtheme": "Research Exemptions and Their Scope", "n_submissions": 16, "support": 5, "oppose": 2, "request_clarification": 6, "propose_change": 8, "concern": 1, "other": 0}, {"subtheme": "Secondary Use of Health Data", "n_submissions": 36, "support": 9, "oppose": 2, "request_clarification": 29, "propose_change": 48, "concern": 24, "other": 11}, {"subtheme": "Legal Basis for Further Processing", "n_submissions": 77, "support": 45, "oppose": 22, "request_clarification": 62, "propose_change": 68, "concern": 56, "other": 17}], "Legal Coherence and Cross-Border Fragmentation": [{"subtheme": "Legal Bases And Frameworks For Research", "n_submissions": 2, "support": 0, "oppose": 0, "request_clarification": 0, "propose_change": 1, "concern": 1, "other": 0}, {"subtheme": "Clarity of Guidance and Terminology", "n_submissions": 11, "support": 0, "oppose": 3, "request_clarification": 3, "propose_change": 0, "concern": 9, "other": 1}, {"subtheme": "Compatibility of Further Research Use", "n_submissions": 13, "support": 3, "oppose": 0, "request_clarification": 5, "propose_change": 7, "concern": 2, "other": 0}, {"subtheme": "Restrictive Scope of Research Provisions", "n_submissions": 17, "support": 0, "oppose": 10, "request_clarification": 0, "propose_change": 5, "concern": 17, "other": 1}, {"subtheme": "Article 9 Research Derogations and Legal Basis", "n_submissions": 44, "support": 11, "oppose": 8, "request_clarification": 37, "propose_change": 32, "concern": 27, "other": 9}, {"subtheme": "Cross-Border and Cross-Law Consistency", "n_submissions": 48, "support": 3, "oppose": 0, "request_clarification": 24, "propose_change": 40, "concern": 67, "other": 3}, {"subtheme": "Compatibility Presumption Under Article 5(1)(b)", "n_submissions": 48, "support": 8, "oppose": 8, "request_clarification": 36, "propose_change": 41, "concern": 21, "other": 10}], "Proportionality and Compliance Burden in Research": [{"subtheme": "Restrictive Scope of Research Provisions", "n_submissions": 8, "support": 0, "oppose": 0, "request_clarification": 0, "propose_change": 5, "concern": 5, "other": 0}, {"subtheme": "Legal Basis and Balancing Test Assessments", "n_submissions": 13, "support": 2, "oppose": 2, "request_clarification": 7, "propose_change": 11, "concern": 3, "other": 2}, {"subtheme": "Proportionality in Compliance Obligations", "n_submissions": 37, "support": 4, "oppose": 1, "request_clarification": 14, "propose_change": 36, "concern": 12, "other": 3}, {"subtheme": "Compliance Burden in Research", "n_submissions": 40, "support": 0, "oppose": 11, "request_clarification": 1, "propose_change": 9, "concern": 46, "other": 3}], "Transparency and Information Obligations in Research": [{"subtheme": "Indicative Factors for Research", "n_submissions": 3, "support": 0, "oppose": 1, "request_clarification": 0, "propose_change": 3, "concern": 2, "other": 2}, {"subtheme": "Data Retention Periods and Special Data Types", "n_submissions": 3, "support": 0, "oppose": 2, "request_clarification": 0, "propose_change": 0, "concern": 2, "other": 0}, {"subtheme": "AI and Genetic Research Guidance", "n_submissions": 3, "support": 0, "oppose": 0, "request_clarification": 3, "propose_change": 1, "concern": 9, "other": 0}, {"subtheme": "Consent Feasibility and Confidentiality in Research", "n_submissions": 6, "support": 0, "oppose": 0, "request_clarification": 1, "propose_change": 0, "concern": 5, "other": 2}, {"subtheme": "Manifestly Public Data & Consent Basis", "n_submissions": 11, "support": 3, "oppose": 2, "request_clarification": 0, "propose_change": 6, "concern": 6, "other": 2}, {"subtheme": "Transparency and Information Obligations in Research", "n_submissions": 34, "support": 4, "oppose": 10, "request_clarification": 18, "propose_change": 21, "concern": 22, "other": 4}, {"subtheme": "Transparency Obligations In Research", "n_submissions": 59, "support": 8, "oppose": 6, "request_clarification": 42, "propose_change": 60, "concern": 46, "other": 7}]}, "stance_colors": {"support": "#4C9F70", "oppose": "#D1495B", "request_clarification": "#3D7EA6", "propose_change": "#E8A33D", "concern": "#B07AA1", "other": "#9AA0A6"}, "stance_order": ["support", "oppose", "request_clarification", "propose_change", "concern", "other"]}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const STANCE_ORDER = DATA.stance_order, COLORS = DATA.stance_colors;
+
+
+document.getElementById('hide-header-btn').onclick = () => document.body.classList.remove('header-open');
+document.getElementById('expand-header-btn').onclick = () => document.body.classList.add('header-open');
+
+
+function stanceTraces(rows, yKey) {
+  return STANCE_ORDER.map(stance => ({
+    type: 'bar',
+    orientation: 'h',
+    name: stance.replace(/_/g, ' '),
+    y: rows.map(r => r[yKey]),
+    x: rows.map(r => r[stance]),
+    marker: { color: COLORS[stance] },
+    hovertemplate: '%{y}<br>' + stance.replace(/_/g, ' ') + ': %{x}<extra></extra>',
+  }));
+}
+
+const baseLayout = {
+  barmode: 'stack',
+  margin: { l: 280, r: 20, t: 10, b: 40 },
+  legend: { orientation: 'h', y: -0.08 },
+  font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', size: 12, color: '#1c1c1e' },
+  xaxis: { title: 'Codes', gridcolor: '#eee' },
+  yaxis: { automargin: true },
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: 'rgba(0,0,0,0)',
+};
+
+Plotly.newPlot('theme-chart', stanceTraces(DATA.themes, 'theme'),
+  { ...baseLayout, height: Math.max(320, DATA.themes.length * 34) },
+  { responsive: true, displayModeBar: false });
+
+const select = document.getElementById('theme-select');
+Object.keys(DATA.subthemes_by_theme).sort().forEach(theme => {
+  const opt = document.createElement('option');
+  opt.value = theme; opt.textContent = theme;
+  select.appendChild(opt);
+});
+
+function renderSubthemes(theme) {
+  const rows = DATA.subthemes_by_theme[theme] || [];
+  Plotly.react('subtheme-chart', stanceTraces(rows, 'subtheme'),
+    { ...baseLayout, height: Math.max(280, rows.length * 34) },
+    { responsive: true, displayModeBar: false });
+}
+
+// Default to the most-prevalent theme (top bar of the chart above), not alphabetically first.
+const defaultTheme = DATA.themes[DATA.themes.length - 1].theme;
+select.value = defaultTheme;
+renderSubthemes(defaultTheme);
+select.onchange = () => renderSubthemes(select.value);
+</script>
+</body>
+</html>

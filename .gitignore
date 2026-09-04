@@ -1,0 +1,10 @@
+ANTHROPIC_API_KEY
+env/
+__pycache__/
+*.pyc
+.DS_Store
+experiments/
+scratch/
+cache/
+backup/
+data/
