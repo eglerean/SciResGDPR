@@ -65,6 +65,8 @@ HEADER_CSS = """
     cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
+  .cc-badge { display: inline-flex; align-items: center; color: inherit; opacity: 0.85; }
+  .cc-badge:hover { opacity: 1; }
 
   /* Always-visible quick nav to the other pages/modes - a page-local rendering of the same
      pill-button look as the explorer's own By theme/By stance toggle, so all four read as one
@@ -111,7 +113,7 @@ def render_header(
 {term_legend_html}  <nav class="top-nav">
     {nav_links_html}
   </nav>
-  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code),  <a href="{linkedin_url}" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+  <p class="builder-note"><span class="credit">Built by {cc_badge_link()}<strong>Enrico Glerean</strong> (done with Claude Code),  <a href="{linkedin_url}" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
     Please note that I built this to make it easier for me to explore the content of the 132 submissions,
     I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
     of the results cannot match what a human would have done with a proper thematic analysis.</p>
@@ -119,7 +121,7 @@ def render_header(
 <div id="title-strip">
   {strip_back_link_html}<span class="t">{title}</span>
   <span class="sub">{strip_subtitle}</span>
-  <span class="credit">Made by Enrico Glerean</span>
+  <span class="credit">{cc_badge_link()}Enrico Glerean</span>
   <button class="expand-btn" id="expand-header-btn">Read what this is about ▾</button>
 </div>"""
 
@@ -130,6 +132,33 @@ def term_legend(n_themes: int, n_subthemes: int, n_codes: int) -> str:
 
 def back_link(href: str, label: str = "← Theme Explorer") -> str:
     return f'<a class="back-link" href="{href}">{label}</a>'
+
+
+# Small inline SVG rather than a hosted badge image (e.g. licensebuttons.net) - self-contained,
+# crisp at any size, and its `currentColor` fills/strokes automatically match whatever text
+# color it's dropped into (the light-grey title-strip credit vs. the builder-note credit).
+_CC_BADGE_SVG = (
+    '<svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true" focusable="false" '
+    'style="vertical-align:-2px;margin-right:3px">'
+    '<circle cx="7.5" cy="7.5" r="6.8" fill="none" stroke="currentColor" stroke-width="1"/>'
+    '<text x="7.5" y="10.5" text-anchor="middle" font-size="7.5" font-family="Georgia, serif" '
+    'fill="currentColor">cc</text>'
+    '<circle cx="22.5" cy="7.5" r="6.8" fill="none" stroke="currentColor" stroke-width="1"/>'
+    '<text x="22.5" y="10.5" text-anchor="middle" font-size="6.5" font-family="Arial, sans-serif" '
+    'fill="currentColor">BY</text>'
+    '</svg>'
+)
+
+
+def cc_badge_link() -> str:
+    """A small CC BY 4.0 icon linking to the license - this work's licensing, next to the
+    credit line wherever "Enrico Glerean" is shown (see docstring at top of this module for
+    the pages it appears on)."""
+    return (
+        '<a class="cc-badge" href="https://creativecommons.org/licenses/by/4.0/" '
+        'target="_blank" rel="license noopener" title="Content licensed under CC BY 4.0">'
+        f"{_CC_BADGE_SVG}</a>"
+    )
 
 
 def social_meta_html(*, title: str, description: str, path: str = "") -> str:

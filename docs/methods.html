@@ -176,6 +176,8 @@
     cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
+  .cc-badge { display: inline-flex; align-items: center; color: inherit; opacity: 0.85; }
+  .cc-badge:hover { opacity: 1; }
 
   /* Always-visible quick nav to the other pages/modes - a page-local rendering of the same
      pill-button look as the explorer's own By theme/By stance toggle, so all four read as one
@@ -379,7 +381,7 @@
     <a href="index.html">← Theme Explorer</a>
     <a href="dashboard.html">Dashboard →</a>
   </nav>
-  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code) — <a href="__LINKEDIN_URL__" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+  <p class="builder-note"><span class="credit">Built by <a class="cc-badge" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="license noopener" title="Content licensed under CC BY 4.0"><svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true" focusable="false" style="vertical-align:-2px;margin-right:3px"><circle cx="7.5" cy="7.5" r="6.8" fill="none" stroke="currentColor" stroke-width="1"/><text x="7.5" y="10.5" text-anchor="middle" font-size="7.5" font-family="Georgia, serif" fill="currentColor">cc</text><circle cx="22.5" cy="7.5" r="6.8" fill="none" stroke="currentColor" stroke-width="1"/><text x="22.5" y="10.5" text-anchor="middle" font-size="6.5" font-family="Arial, sans-serif" fill="currentColor">BY</text></svg></a><strong>Enrico Glerean</strong> (done with Claude Code) — <a href="__LINKEDIN_URL__" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
     Please note that I built this to make it easier for me to explore the content of the 132 submissions,
     I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
     of the results cannot match what a human would have done with a proper thematic analysis.</p>
@@ -388,7 +390,7 @@
   <a class="back-link" href="index.html">← Theme Explorer</a>
   <span class="t">How the Theme Explorer Was Built</span>
   <span class="sub">Methods: extraction, two-pass LLM coding, and Leiden clustering</span>
-  <span class="credit">Made by Enrico Glerean</span>
+  <span class="credit"><a class="cc-badge" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="license noopener" title="Content licensed under CC BY 4.0"><svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true" focusable="false" style="vertical-align:-2px;margin-right:3px"><circle cx="7.5" cy="7.5" r="6.8" fill="none" stroke="currentColor" stroke-width="1"/><text x="7.5" y="10.5" text-anchor="middle" font-size="7.5" font-family="Georgia, serif" fill="currentColor">cc</text><circle cx="22.5" cy="7.5" r="6.8" fill="none" stroke="currentColor" stroke-width="1"/><text x="22.5" y="10.5" text-anchor="middle" font-size="6.5" font-family="Arial, sans-serif" fill="currentColor">BY</text></svg></a>Enrico Glerean</span>
   <button class="expand-btn" id="expand-header-btn">Read what this is about ▾</button>
 </div>
 <nav class="page-nav-bar">
