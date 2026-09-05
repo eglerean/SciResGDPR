@@ -37,7 +37,12 @@ LINKEDIN_URL = "__LINKEDIN_URL_PLACEHOLDER__"
 def main():
     tree = json.loads((OUTPUT_DIR / "theme_tree.json").read_text(encoding="utf-8"))
     payload = {"tree": tree, "stance_colors": STANCE_COLORS}
-    data_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
+    # Written as its own file and fetched at runtime rather than embedded in index.html - the
+    # full quote corpus makes that embed ~8.5MB, well over LinkedIn's (and other crawlers')
+    # scrape-size limit (3MB), which was silently killing every social preview of this page.
+    # Splitting it out keeps index.html itself small (crawlable) and lets a real browser render
+    # the page shell instantly instead of blocking on an 8MB inline parse.
+    data_json = json.dumps(payload, ensure_ascii=False)
 
     n_themes = len(tree)
     n_sub = sum(len(t["subthemes"]) for t in tree)
@@ -67,8 +72,7 @@ def main():
     social_meta = social_meta_html(title=page_title, description=strip_subtitle)
 
     html = (
-        HTML_TEMPLATE.replace("__DATA__", data_json)
-        .replace("__HEADER_CSS__", HEADER_CSS)
+        HTML_TEMPLATE.replace("__HEADER_CSS__", HEADER_CSS)
         .replace("__HEADER_HTML__", header_html)
         .replace("__HEADER_JS__", HEADER_JS)
         .replace("__SOCIAL_META__", social_meta)
@@ -76,8 +80,11 @@ def main():
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DOCS_DIR / "index.html"
     out_path.write_text(html, encoding="utf-8")
+    data_path = DOCS_DIR / "explorer-data.json"
+    data_path.write_text(data_json, encoding="utf-8")
 
-    print(f"Wrote {out_path} ({n_themes} themes, {n_sub} subthemes, {n_codes} codes)")
+    print(f"Wrote {out_path} ({out_path.stat().st_size} bytes) and {data_path} "
+          f"({n_themes} themes, {n_sub} subthemes, {n_codes} codes)")
     if "PLACEHOLDER" in LINKEDIN_URL:
         print("WARNING: LINKEDIN_URL is still a placeholder.")
 
@@ -205,22 +212,22 @@ __HEADER_HTML__
       </div>
       <div id="subtitle-row"><small id="subtitle"></small></div>
     </h1>
-    <div id="tree"></div>
+    <div id="tree"><div class="empty">Loading…</div></div>
   </div>
   <button id="drawer-open" aria-label="Open theme menu">☰ Themes</button>
-  <div id="detail"><div class="empty">Select a theme, subtheme or code on the left.</div></div>
+  <div id="detail"><div class="empty">Loading…</div></div>
 </div>
 
-<script id="data" type="application/json">__DATA__</script>
 <script>
-const DATA = JSON.parse(document.getElementById('data').textContent);
-const TREE = DATA.tree, COLORS = DATA.stance_colors;
+let DATA = null, TREE = null, COLORS = null;
 const STANCE_ORDER = ['support','oppose','request_clarification','propose_change','concern','other'];
 
-document.getElementById('subtitle').textContent =
-  TREE.length + ' themes · ' +
-  TREE.reduce((a,t) => a + t.subthemes.length, 0) + ' subthemes · ' +
-  TREE.reduce((a,t) => a + t.subthemes.reduce((b,s) => b + s.codes.length, 0), 0) + ' codes';
+function updateSubtitle() {
+  document.getElementById('subtitle').textContent =
+    TREE.length + ' themes · ' +
+    TREE.reduce((a,t) => a + t.subthemes.length, 0) + ' subthemes · ' +
+    TREE.reduce((a,t) => a + t.subthemes.reduce((b,s) => b + s.codes.length, 0), 0) + ' codes';
+}
 
 __HEADER_JS__
 
@@ -573,6 +580,7 @@ const EMPTY_DETAIL_HTML = '<div class="empty">Select a theme, subtheme or code o
 let CURRENT_MODE_NODES = [];
 
 function setMode(mode) {
+  if (!TREE) return; // ignore a click that lands before the data fetch below has resolved
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   CURRENT_MODE_NODES = mode === 'stance' ? stanceModeNodes() : themeModeNodes();
   buildTree(treeEl, CURRENT_MODE_NODES);
@@ -588,7 +596,7 @@ document.getElementById('mode-toggle').addEventListener('click', (e) => {
 // Lets the dashboard's charts (docs/dashboard.html) deep-link straight into a specific
 // stance/theme/subtheme, reusing activateNode - the exact same "reveal and select this node"
 // entry point already built for chip-click navigation.
-(function bootstrap() {
+function bootstrap() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('mode') !== 'stance') { setMode('theme'); return; }
   setMode('stance');
@@ -601,7 +609,29 @@ document.getElementById('mode-toggle').addEventListener('click', (e) => {
   const subthemeParam = params.get('subtheme');
   const subthemeNode = subthemeParam && (themeNode.children || []).find(n => n.label === subthemeParam);
   activateNode(subthemeNode || themeNode);
-})();
+}
+
+// The full quote corpus lives in its own file rather than inline (see build_explorer.py's
+// main() for why) so this page stays small enough for link-preview crawlers, and so a real
+// visitor gets the page shell immediately instead of blocking on an 8MB inline parse.
+fetch('explorer-data.json')
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    DATA = data;
+    TREE = DATA.tree;
+    COLORS = DATA.stance_colors;
+    updateSubtitle();
+    bootstrap();
+  })
+  .catch(err => {
+    const msg = '<div class="empty">Could not load the theme data (' + esc(err.message) + '). Try reloading the page.</div>';
+    detailEl.innerHTML = msg;
+    treeEl.innerHTML = msg;
+    console.error(err);
+  });
 </script>
 </body>
 </html>
