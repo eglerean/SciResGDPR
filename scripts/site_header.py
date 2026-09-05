@@ -161,6 +161,11 @@ def cc_badge_link() -> str:
     )
 
 
+# One shared card (1200x630, the standard og:image/Twitter summary_large_image size) reused
+# across all three pages - identifies the site regardless of which page gets shared.
+SOCIAL_IMAGE_PATH = "social-preview.png"
+
+
 def social_meta_html(*, title: str, description: str, path: str = "") -> str:
     """<meta> description + Open Graph + Twitter Card tags for a good social-media preview.
 
@@ -173,12 +178,17 @@ def social_meta_html(*, title: str, description: str, path: str = "") -> str:
     t = _html.escape(title, quote=True)
     d = _html.escape(description, quote=True)
     url = BASE_URL + path
+    image_url = BASE_URL + SOCIAL_IMAGE_PATH
     return f"""<meta name="description" content="{d}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="EDPB Consultation: GDPR and Scientific Research">
 <meta property="og:title" content="{t}">
 <meta property="og:description" content="{d}">
 <meta property="og:url" content="{url}">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="{image_url}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{t}">
-<meta name="twitter:description" content="{d}">"""
+<meta name="twitter:description" content="{d}">
+<meta name="twitter:image" content="{image_url}">"""

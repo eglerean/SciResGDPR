@@ -66,6 +66,12 @@ def main():
 
     page_title = "Stance Dashboard"
     strip_subtitle = "Support/oppose/concern breakdown for all 17 themes in one view"
+    # Longer than strip_subtitle on purpose - see the matching comment in build_explorer.py.
+    og_description = (
+        "A one-page stance dashboard: support, oppose, request clarification, propose change, "
+        "concern, and other, broken down for all 17 themes drawn from the EDPB consultation on "
+        "GDPR and scientific research."
+    )
 
     header_html = render_header(
         title=page_title,
@@ -81,7 +87,7 @@ def main():
         term_legend_html=term_legend(n_themes, n_subthemes, n_codes),
         strip_back_link_html=back_link("index.html") + " ",
     )
-    social_meta = social_meta_html(title=page_title, description=strip_subtitle, path="dashboard.html")
+    social_meta = social_meta_html(title=page_title, description=og_description, path="dashboard.html")
 
     html = (
         HTML_TEMPLATE.replace("__DATA__", data_json)

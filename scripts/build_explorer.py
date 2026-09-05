@@ -50,6 +50,14 @@ def main():
 
     page_title = "What 132 Submissions Say About GDPR and Scientific Research"
     strip_subtitle = "132 EDPB consultation submissions on GDPR and scientific research, organised by theme"
+    # Longer than strip_subtitle on purpose - LinkedIn's Post Inspector warns below ~100 chars,
+    # and the on-page collapsed strip text above is already tuned for that one-line spot, so this
+    # is kept as its own string rather than reusing/lengthening it.
+    og_description = (
+        "132 written submissions to the EDPB's public consultation on GDPR and scientific research "
+        "(Draft Guidelines 1/2026), organised into a browsable hierarchy of themes, subthemes, and "
+        "issues extracted paragraph by paragraph with an LLM."
+    )
 
     header_html = render_header(
         title=page_title,
@@ -69,7 +77,7 @@ def main():
         linkedin_url=LINKEDIN_URL,
         term_legend_html=term_legend(n_themes, n_sub, n_codes),
     )
-    social_meta = social_meta_html(title=page_title, description=strip_subtitle)
+    social_meta = social_meta_html(title=page_title, description=og_description)
 
     html = (
         HTML_TEMPLATE.replace("__HEADER_CSS__", HEADER_CSS)
