@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from site_header import HEADER_CSS, HEADER_JS, back_link, render_header, term_legend
+from site_header import HEADER_CSS, HEADER_JS, back_link, render_header, social_meta_html, term_legend
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -64,9 +64,12 @@ def main():
     }
     data_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
 
+    page_title = "Stance Dashboard"
+    strip_subtitle = "Support/oppose/concern breakdown for all 17 themes in one view"
+
     header_html = render_header(
-        title="Stance Dashboard",
-        strip_subtitle="Support/oppose/concern breakdown for all 17 themes in one view",
+        title=page_title,
+        strip_subtitle=strip_subtitle,
         abstract_html=(
             "Every theme's stance breakdown (support / oppose / request clarification / propose change / "
             "concern / other) in one view, instead of clicking through each theme individually in the "
@@ -78,12 +81,14 @@ def main():
         term_legend_html=term_legend(n_themes, n_subthemes, n_codes),
         strip_back_link_html=back_link("index.html") + " ",
     )
+    social_meta = social_meta_html(title=page_title, description=strip_subtitle, path="dashboard.html")
 
     html = (
         HTML_TEMPLATE.replace("__DATA__", data_json)
         .replace("__HEADER_CSS__", HEADER_CSS)
         .replace("__HEADER_HTML__", header_html)
         .replace("__HEADER_JS__", HEADER_JS)
+        .replace("__SOCIAL_META__", social_meta)
     )
 
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
@@ -99,7 +104,8 @@ HTML_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EDPB consultation — stance dashboard</title>
+<title>EDPB consultation | stance dashboard</title>
+__SOCIAL_META__
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly.min.js"></script>
 <style>
   :root {
@@ -117,10 +123,17 @@ __HEADER_CSS__
   select { font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
            background: var(--panel); color: var(--fg); }
   #theme-chart, #subtheme-chart { width: 100%; }
+  #theme-chart .bars path, #subtheme-chart .bars path { cursor: pointer; }
 </style>
 </head>
 <body>
 __HEADER_HTML__
+<nav class="page-nav-bar">
+  <a href="index.html">By theme</a>
+  <a href="index.html?mode=stance">By stance</a>
+  <a href="methods.html">Methods</a>
+  <a class="current" href="dashboard.html">Dashboard</a>
+</nav>
 <main>
   <section>
     <h2>All themes</h2>
@@ -165,9 +178,29 @@ const baseLayout = {
   plot_bgcolor: 'rgba(0,0,0,0)',
 };
 
+// A clicked stance-colored bar segment sends the reader straight into the explorer's "By
+// stance" view for that stance/theme(/subtheme), instead of leaving them to find it by hand.
+function navigateToStance(stance, theme, subtheme) {
+  const params = new URLSearchParams();
+  params.set('mode', 'stance');
+  params.set('stance', stance);
+  params.set('theme', theme);
+  if (subtheme) params.set('subtheme', subtheme);
+  window.location.href = 'index.html?' + params.toString();
+}
+
 Plotly.newPlot('theme-chart', stanceTraces(DATA.themes, 'theme'),
   { ...baseLayout, height: Math.max(320, DATA.themes.length * 34) },
   { responsive: true, displayModeBar: false });
+
+// curveNumber indexes STANCE_ORDER directly, since stanceTraces() builds one trace per stance
+// in that exact order; p.y is the bar's category (theme name here, subtheme name below), per
+// how stanceTraces() assigns y: rows.map(r => r[yKey]) for a horizontal bar.
+document.getElementById('theme-chart').on('plotly_click', (ev) => {
+  const p = ev.points[0];
+  if (!p) return;
+  navigateToStance(STANCE_ORDER[p.curveNumber], p.y);
+});
 
 const select = document.getElementById('theme-select');
 Object.keys(DATA.subthemes_by_theme).sort().forEach(theme => {
@@ -188,6 +221,15 @@ const defaultTheme = DATA.themes[DATA.themes.length - 1].theme;
 select.value = defaultTheme;
 renderSubthemes(defaultTheme);
 select.onchange = () => renderSubthemes(select.value);
+
+// .on() needs the div to already be a live Plotly graph, so this is wired after the first
+// renderSubthemes() call above (Plotly.react bootstraps it); it then persists across every
+// later Plotly.react() the dropdown triggers, so it's only attached once here.
+document.getElementById('subtheme-chart').on('plotly_click', (ev) => {
+  const p = ev.points[0];
+  if (!p) return;
+  navigateToStance(STANCE_ORDER[p.curveNumber], select.value, p.y);
+});
 </script>
 </body>
 </html>

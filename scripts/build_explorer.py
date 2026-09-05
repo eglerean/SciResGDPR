@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from site_header import HEADER_CSS, HEADER_JS, render_header, term_legend
+from site_header import HEADER_CSS, HEADER_JS, render_header, social_meta_html, term_legend
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = ROOT / "output"
@@ -43,13 +43,16 @@ def main():
     n_sub = sum(len(t["subthemes"]) for t in tree)
     n_codes = sum(len(s["codes"]) for t in tree for s in t["subthemes"])
 
+    page_title = "What 132 Submissions Say About GDPR and Scientific Research"
+    strip_subtitle = "132 EDPB consultation submissions on GDPR and scientific research, organised by theme"
+
     header_html = render_header(
-        title="What 132 Submissions Say About GDPR and Scientific Research",
-        strip_subtitle="132 EDPB consultation submissions on GDPR and scientific research, organised by theme",
+        title=page_title,
+        strip_subtitle=strip_subtitle,
         abstract_html=(
             "This explorer organises 132 written submissions to the EDPB's public consultation on "
             "Draft Guidelines 1/2026 (the GDPR and scientific research) into a browsable hierarchy of "
-            "themes, subthemes, and specific issues — built by having an LLM read every paragraph, name "
+            "themes, subthemes, and specific issues, built by having an LLM read every paragraph, name "
             "the individual arguments it raises, and cluster those arguments rather than the raw text. "
             "<strong>To use it:</strong> click a theme in the left-hand tree to expand its subthemes and "
             "issues; selecting any node shows how many submissions raised it, the balance of "
@@ -61,12 +64,14 @@ def main():
         linkedin_url=LINKEDIN_URL,
         term_legend_html=term_legend(n_themes, n_sub, n_codes),
     )
+    social_meta = social_meta_html(title=page_title, description=strip_subtitle)
 
     html = (
         HTML_TEMPLATE.replace("__DATA__", data_json)
         .replace("__HEADER_CSS__", HEADER_CSS)
         .replace("__HEADER_HTML__", header_html)
         .replace("__HEADER_JS__", HEADER_JS)
+        .replace("__SOCIAL_META__", social_meta)
     )
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DOCS_DIR / "index.html"
@@ -82,7 +87,8 @@ HTML_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EDPB consultation — theme explorer</title>
+<title>EDPB consultation | theme explorer</title>
+__SOCIAL_META__
 <style>
   :root {
     --bg: #ffffff; --fg: #1c1c1e; --muted: #6b7280; --line: #e5e7eb;
@@ -101,9 +107,10 @@ __HEADER_CSS__
        position: sticky; top: 0; background: var(--panel); z-index: 2; }
   #sidebar h1 .h1-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   #subtitle-row { display: block; color: var(--muted); font-weight: 400; margin-top: 5px; font-size: 12px; }
-  .mode-toggle { display: flex; gap: 4px; }
+  .mode-toggle { display: flex; gap: 4px; flex-wrap: wrap; }
   .mode-btn { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 12px;
-              border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer; }
+              border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer;
+              text-decoration: none; }
   .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   #drawer-close, #drawer-open { display: none; }
   .node { cursor: pointer; user-select: none; }
@@ -191,6 +198,8 @@ __HEADER_HTML__
         <div class="mode-toggle" id="mode-toggle">
           <button class="mode-btn active" data-mode="theme">By theme</button>
           <button class="mode-btn" data-mode="stance">By stance</button>
+          <a class="mode-btn" href="methods.html">Methods</a>
+          <a class="mode-btn" href="dashboard.html">Dashboard</a>
         </div>
         <button id="drawer-close" aria-label="Close theme menu" title="Close">✕</button>
       </div>
@@ -561,17 +570,38 @@ const treeEl = document.getElementById('tree');
 const detailEl = document.getElementById('detail');
 const EMPTY_DETAIL_HTML = '<div class="empty">Select a theme, subtheme or code on the left.</div>';
 
+let CURRENT_MODE_NODES = [];
+
 function setMode(mode) {
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  buildTree(treeEl, mode === 'stance' ? stanceModeNodes() : themeModeNodes());
+  CURRENT_MODE_NODES = mode === 'stance' ? stanceModeNodes() : themeModeNodes();
+  buildTree(treeEl, CURRENT_MODE_NODES);
   detailEl.innerHTML = EMPTY_DETAIL_HTML;
 }
 document.getElementById('mode-toggle').addEventListener('click', (e) => {
+  // Methods/Dashboard share this same row and .mode-btn look but are plain links (no
+  // data-mode) - only the two real mode buttons should drive setMode().
   const btn = e.target.closest('.mode-btn');
-  if (btn) setMode(btn.dataset.mode);
+  if (btn && btn.dataset.mode) setMode(btn.dataset.mode);
 });
 
-setMode('theme');
+// Lets the dashboard's charts (docs/dashboard.html) deep-link straight into a specific
+// stance/theme/subtheme, reusing activateNode - the exact same "reveal and select this node"
+// entry point already built for chip-click navigation.
+(function bootstrap() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('mode') !== 'stance') { setMode('theme'); return; }
+  setMode('stance');
+  const stanceNode = CURRENT_MODE_NODES.find(n => n.label === stanceLabel(params.get('stance') || ''));
+  if (!stanceNode) return;
+  const themeParam = params.get('theme');
+  if (!themeParam) { activateNode(stanceNode); return; }
+  const themeNode = (stanceNode.children || []).find(n => n.label === themeParam);
+  if (!themeNode) { activateNode(stanceNode); return; }
+  const subthemeParam = params.get('subtheme');
+  const subthemeNode = subthemeParam && (themeNode.children || []).find(n => n.label === subthemeParam);
+  activateNode(subthemeNode || themeNode);
+})();
 </script>
 </body>
 </html>

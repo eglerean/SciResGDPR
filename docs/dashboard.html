@@ -3,7 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EDPB consultation — stance dashboard</title>
+<title>EDPB consultation | stance dashboard</title>
+<meta name="description" content="Support/oppose/concern breakdown for all 17 themes in one view">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="EDPB Consultation: GDPR and Scientific Research">
+<meta property="og:title" content="Stance Dashboard">
+<meta property="og:description" content="Support/oppose/concern breakdown for all 17 themes in one view">
+<meta property="og:url" content="https://eglerean.github.io/SciResGDPR/dashboard.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Stance Dashboard">
+<meta name="twitter:description" content="Support/oppose/concern breakdown for all 17 themes in one view">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly.min.js"></script>
 <style>
   :root {
@@ -63,6 +72,17 @@
   }
   #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
 
+  /* Always-visible quick nav to the other pages/modes - a page-local rendering of the same
+     pill-button look as the explorer's own By theme/By stance toggle, so all four read as one
+     control regardless of which page you're on. Sits below the title strip, outside the
+     collapsible box, so it's on screen whether or not that box is expanded. */
+  .page-nav-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 20px 0; }
+  .page-nav-bar a { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 12px;
+                     border: 1px solid var(--line); background: #fff; color: var(--muted);
+                     text-decoration: none; }
+  .page-nav-bar a:hover { background: #f3f4f6; }
+  .page-nav-bar a.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+
   main { max-width: 1080px; margin: 0 auto; padding: 24px 28px 80px; }
   section { margin-top: 36px; }
   section h2 { font-size: 15px; margin: 0 0 4px; }
@@ -70,24 +90,25 @@
   select { font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
            background: var(--panel); color: var(--fg); }
   #theme-chart, #subtheme-chart { width: 100%; }
+  #theme-chart .bars path, #subtheme-chart .bars path { cursor: pointer; }
 </style>
 </head>
 <body>
 <div id="page-header">
   <button id="hide-header-btn" title="Hide this panel" aria-label="Hide this panel">✕</button>
-  <div class="eyebrow">EDPB Consultation — Draft Guidelines 1/2026</div>
+  <div class="eyebrow">EDPB Consultation | Draft Guidelines 1/2026</div>
   <h1 class="page-title">Stance Dashboard</h1>
   <p class="abstract">Every theme's stance breakdown (support / oppose / request clarification / propose change / concern / other) in one view, instead of clicking through each theme individually in the explorer. Bar length is submissions raising that theme; segments show how those submissions were coded. Select a theme below to see the same breakdown for its subthemes.</p>
   <div id="term-legend">
-    <span><b>Theme</b> — a broad topic area · 17 total</span>
-    <span><b>Subtheme</b> — a more specific grouping within a theme · 97 total</span>
-    <span><b>Code</b> — one specific issue or argument, the atomic unit read from the text · 565 total</span>
+    <span><b>Theme</b>:  a broad topic area · 17 total</span>
+    <span><b>Subtheme</b>: a more specific grouping within a theme · 97 total</span>
+    <span><b>Code</b>: one specific issue or argument, the atomic unit read from the text · 565 total</span>
   </div>
   <nav class="top-nav">
     <a class="back-link" href="index.html">← Theme Explorer</a>
     <a href="methods.html">Methods →</a>
   </nav>
-  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code) — <a href="__LINKEDIN_URL_PLACEHOLDER__" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code),  <a href="__LINKEDIN_URL_PLACEHOLDER__" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
     Please note that I built this to make it easier for me to explore the content of the 132 submissions,
     I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
     of the results cannot match what a human would have done with a proper thematic analysis.</p>
@@ -98,6 +119,12 @@
   <span class="credit">Made by Enrico Glerean</span>
   <button class="expand-btn" id="expand-header-btn">Read what this is about ▾</button>
 </div>
+<nav class="page-nav-bar">
+  <a href="index.html">By theme</a>
+  <a href="index.html?mode=stance">By stance</a>
+  <a href="methods.html">Methods</a>
+  <a class="current" href="dashboard.html">Dashboard</a>
+</nav>
 <main>
   <section>
     <h2>All themes</h2>
@@ -145,9 +172,29 @@ const baseLayout = {
   plot_bgcolor: 'rgba(0,0,0,0)',
 };
 
+// A clicked stance-colored bar segment sends the reader straight into the explorer's "By
+// stance" view for that stance/theme(/subtheme), instead of leaving them to find it by hand.
+function navigateToStance(stance, theme, subtheme) {
+  const params = new URLSearchParams();
+  params.set('mode', 'stance');
+  params.set('stance', stance);
+  params.set('theme', theme);
+  if (subtheme) params.set('subtheme', subtheme);
+  window.location.href = 'index.html?' + params.toString();
+}
+
 Plotly.newPlot('theme-chart', stanceTraces(DATA.themes, 'theme'),
   { ...baseLayout, height: Math.max(320, DATA.themes.length * 34) },
   { responsive: true, displayModeBar: false });
+
+// curveNumber indexes STANCE_ORDER directly, since stanceTraces() builds one trace per stance
+// in that exact order; p.y is the bar's category (theme name here, subtheme name below), per
+// how stanceTraces() assigns y: rows.map(r => r[yKey]) for a horizontal bar.
+document.getElementById('theme-chart').on('plotly_click', (ev) => {
+  const p = ev.points[0];
+  if (!p) return;
+  navigateToStance(STANCE_ORDER[p.curveNumber], p.y);
+});
 
 const select = document.getElementById('theme-select');
 Object.keys(DATA.subthemes_by_theme).sort().forEach(theme => {
@@ -168,6 +215,15 @@ const defaultTheme = DATA.themes[DATA.themes.length - 1].theme;
 select.value = defaultTheme;
 renderSubthemes(defaultTheme);
 select.onchange = () => renderSubthemes(select.value);
+
+// .on() needs the div to already be a live Plotly graph, so this is wired after the first
+// renderSubthemes() call above (Plotly.react bootstraps it); it then persists across every
+// later Plotly.react() the dropdown triggers, so it's only attached once here.
+document.getElementById('subtheme-chart').on('plotly_click', (ev) => {
+  const p = ev.points[0];
+  if (!p) return;
+  navigateToStance(STANCE_ORDER[p.curveNumber], select.value, p.y);
+});
 </script>
 </body>
 </html>

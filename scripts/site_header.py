@@ -10,6 +10,12 @@ no flash of the wrong state while JS loads.
 
 from __future__ import annotations
 
+import html as _html
+
+# Default GitHub Pages URL for this repo (eglerean/SciResGDPR, served from /docs, no custom
+# domain / CNAME file) - used to build each page's og:url / canonical link for social previews.
+BASE_URL = "https://eglerean.github.io/SciResGDPR/"
+
 HEADER_CSS = """
   /* Dark intro bar: closed by default (title-strip), full box opens on click. Both states use
      the same dark colors so the bar never flips to a light background when collapsed. */
@@ -59,6 +65,17 @@ HEADER_CSS = """
     cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
+
+  /* Always-visible quick nav to the other pages/modes - a page-local rendering of the same
+     pill-button look as the explorer's own By theme/By stance toggle, so all four read as one
+     control regardless of which page you're on. Sits below the title strip, outside the
+     collapsible box, so it's on screen whether or not that box is expanded. */
+  .page-nav-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 20px 0; }
+  .page-nav-bar a { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 12px;
+                     border: 1px solid var(--line); background: #fff; color: var(--muted);
+                     text-decoration: none; }
+  .page-nav-bar a:hover { background: #f3f4f6; }
+  .page-nav-bar a.current { background: var(--accent); border-color: var(--accent); color: #fff; }
 """
 
 HEADER_JS = """
@@ -67,9 +84,9 @@ document.getElementById('expand-header-btn').onclick = () => document.body.class
 """
 
 TERM_LEGEND_TEMPLATE = """  <div id="term-legend">
-    <span><b>Theme</b> — a broad topic area · {n_themes} total</span>
-    <span><b>Subtheme</b> — a more specific grouping within a theme · {n_subthemes} total</span>
-    <span><b>Code</b> — one specific issue or argument, the atomic unit read from the text · {n_codes} total</span>
+    <span><b>Theme</b>:  a broad topic area · {n_themes} total</span>
+    <span><b>Subtheme</b>: a more specific grouping within a theme · {n_subthemes} total</span>
+    <span><b>Code</b>: one specific issue or argument, the atomic unit read from the text · {n_codes} total</span>
   </div>
 """
 
@@ -88,13 +105,13 @@ def render_header(
     always-rendered collapsed strip (#title-strip) that's visible until the reader expands it."""
     return f"""<div id="page-header">
   <button id="hide-header-btn" title="Hide this panel" aria-label="Hide this panel">✕</button>
-  <div class="eyebrow">EDPB Consultation — Draft Guidelines 1/2026</div>
+  <div class="eyebrow">EDPB Consultation | Draft Guidelines 1/2026</div>
   <h1 class="page-title">{title}</h1>
   <p class="abstract">{abstract_html}</p>
 {term_legend_html}  <nav class="top-nav">
     {nav_links_html}
   </nav>
-  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code) — <a href="{linkedin_url}" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+  <p class="builder-note"><span class="credit">Built by <strong>Enrico Glerean</strong> (done with Claude Code),  <a href="{linkedin_url}" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
     Please note that I built this to make it easier for me to explore the content of the 132 submissions,
     I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
     of the results cannot match what a human would have done with a proper thematic analysis.</p>
@@ -113,3 +130,26 @@ def term_legend(n_themes: int, n_subthemes: int, n_codes: int) -> str:
 
 def back_link(href: str, label: str = "← Theme Explorer") -> str:
     return f'<a class="back-link" href="{href}">{label}</a>'
+
+
+def social_meta_html(*, title: str, description: str, path: str = "") -> str:
+    """<meta> description + Open Graph + Twitter Card tags for a good social-media preview.
+
+    `title`/`description` are meant to be the same short copy each page already shows in its
+    own collapsed title-strip (the page-title and strip_subtitle passed to render_header) -
+    reused here rather than duplicated, so the preview text and the on-page text never drift
+    apart. `path` is the page's filename relative to BASE_URL (e.g. "methods.html"); leave it
+    empty for the site's landing page (index.html), which canonicalises to the bare root URL.
+    """
+    t = _html.escape(title, quote=True)
+    d = _html.escape(description, quote=True)
+    url = BASE_URL + path
+    return f"""<meta name="description" content="{d}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="EDPB Consultation: GDPR and Scientific Research">
+<meta property="og:title" content="{t}">
+<meta property="og:description" content="{d}">
+<meta property="og:url" content="{url}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{t}">
+<meta name="twitter:description" content="{d}">"""

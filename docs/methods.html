@@ -1,6 +1,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reading 132 Submissions</title>
+<meta name="description" content="Methods: extraction, two-pass LLM coding, and Leiden clustering">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="EDPB Consultation: GDPR and Scientific Research">
+<meta property="og:title" content="How the Theme Explorer Was Built">
+<meta property="og:description" content="Methods: extraction, two-pass LLM coding, and Leiden clustering">
+<meta property="og:url" content="https://eglerean.github.io/SciResGDPR/methods.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How the Theme Explorer Was Built">
+<meta name="twitter:description" content="Methods: extraction, two-pass LLM coding, and Leiden clustering">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   :root {
@@ -167,6 +176,17 @@
     cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   #title-strip .expand-btn:hover { background: rgba(255,255,255,0.16); }
+
+  /* Always-visible quick nav to the other pages/modes - a page-local rendering of the same
+     pill-button look as the explorer's own By theme/By stance toggle, so all four read as one
+     control regardless of which page you're on. Sits below the title strip, outside the
+     collapsible box, so it's on screen whether or not that box is expanded. */
+  .page-nav-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 20px 0; }
+  .page-nav-bar a { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 12px;
+                     border: 1px solid var(--line); background: #fff; color: var(--muted);
+                     text-decoration: none; }
+  .page-nav-bar a:hover { background: #f3f4f6; }
+  .page-nav-bar a.current { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   .stat-row {
     display: grid;
@@ -371,6 +391,12 @@
   <span class="credit">Made by Enrico Glerean</span>
   <button class="expand-btn" id="expand-header-btn">Read what this is about ▾</button>
 </div>
+<nav class="page-nav-bar">
+  <a href="index.html">By theme</a>
+  <a href="index.html?mode=stance">By stance</a>
+  <a class="current" href="methods.html">Methods</a>
+  <a href="dashboard.html">Dashboard</a>
+</nav>
 <div class="layout">
   <nav class="toc" id="toc">
     <div class="eyebrow">On this page</div>
