@@ -113,7 +113,7 @@ def render_header(
 {term_legend_html}  <nav class="top-nav">
     {nav_links_html}
   </nav>
-  <p class="builder-note"><span class="credit">Built by {cc_badge_link()}<strong>Enrico Glerean</strong> (done with Claude Code),  <a href="{linkedin_url}" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
+  <p class="builder-note"><span class="credit">{cc_badge_link()}<strong>Enrico Glerean</strong> (done with Claude Code),  <a href="{linkedin_url}" target="_blank" rel="noopener">LinkedIn</a>.</span><br>
     Please note that I built this to make it easier for me to explore the content of the 132 submissions,
     I thought this could be useful for others too. Since the themes were extracted with an LLM the quality
     of the results cannot match what a human would have done with a proper thematic analysis.</p>
