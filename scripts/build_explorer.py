@@ -130,6 +130,8 @@ __HEADER_CSS__
   .stat .k { font-size: 12px; color: var(--muted); }
   .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
   .chip { background: #eef2f7; border-radius: 11px; padding: 2px 9px; font-size: 12px; color: #374151; }
+  .chip-link { cursor: pointer; }
+  .chip-link:hover { background: #dbeafe; color: var(--accent); }
   .quote { border-left: 3px solid var(--line); padding: 8px 0 8px 12px; margin-bottom: 14px; }
   .quote .meta { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
   .quote .meta2 { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; display: flex;
@@ -277,6 +279,17 @@ function wireQuoteExpanders(container) {
   });
 }
 
+// Chips rendered from `items` (in the same order they were mapped to chip HTML) become
+// shortcuts into the sidebar tree - clicking one does exactly what clicking that item's own
+// row would do. Relies on each item carrying an `_node` back-reference (set in themeModeNodes/
+// stanceModeNodes) to its tree-node descriptor.
+function wireChipLinks(container, items) {
+  container.querySelectorAll('.chip-link').forEach((el, i) => {
+    const item = items[i];
+    if (item && item._node) el.onclick = () => activateNode(item._node);
+  });
+}
+
 function renderDetail(node, kind, crumb) {
   const d = document.getElementById('detail');
   const title = node.theme || node.subtheme || node.code;
@@ -289,12 +302,12 @@ function renderDetail(node, kind, crumb) {
 
   if (kind === 'theme') {
     html += '<section><h3>Subthemes</h3><div class="chips">' +
-      node.subthemes.map(s => '<span class="chip">' + esc(s.subtheme) + ' · ' + s.n_submissions + '</span>').join('') +
+      node.subthemes.map(s => '<span class="chip chip-link">' + esc(s.subtheme) + ' · ' + s.n_submissions + '</span>').join('') +
       '</div></section>';
   }
   if (kind === 'subtheme') {
     html += '<section><h3>Codes</h3><div class="chips">' +
-      node.codes.map(c => '<span class="chip">' + esc(c.code) + ' · ' + c.n_submissions + '</span>').join('') +
+      node.codes.map(c => '<span class="chip chip-link">' + esc(c.code) + ' · ' + c.n_submissions + '</span>').join('') +
       '</div></section>';
   }
   if (kind === 'code') {
@@ -311,6 +324,8 @@ function renderDetail(node, kind, crumb) {
   }
   d.innerHTML = html;
   wireQuoteExpanders(d);
+  if (kind === 'theme') wireChipLinks(d, node.subthemes);
+  if (kind === 'subtheme') wireChipLinks(d, node.codes);
   d.scrollTop = 0;
 }
 
@@ -321,12 +336,13 @@ function renderStanceRoot(stance, bucket) {
     '<h2><span class="badge" style="background:' + (COLORS[stance] || '#999') + '">' + esc(stanceLabel(stance)) + '</span></h2>';
   html += statRowHtml(stats.n_submissions, stats.n_paragraphs, '');
   const themes = [...bucket.byTheme.entries()]
-    .map(([name, tb]) => ({ name, stats: statsFromQuotes(tb.quotes) }))
+    .map(([name, tb]) => ({ name, tb, stats: statsFromQuotes(tb.quotes) }))
     .sort((a,b) => b.stats.n_submissions - a.stats.n_submissions);
   html += '<section><h3>Themes</h3><div class="chips">' +
-    themes.map(t => '<span class="chip">' + esc(t.name) + ' · ' + t.stats.n_submissions + '</span>').join('') +
+    themes.map(t => '<span class="chip chip-link">' + esc(t.name) + ' · ' + t.stats.n_submissions + '</span>').join('') +
     '</div></section>';
   d.innerHTML = html;
+  wireChipLinks(d, themes.map(t => t.tb));
   d.scrollTop = 0;
 }
 
@@ -362,6 +378,33 @@ function select(row, renderFn, autoCloseDrawer) {
   if (autoCloseDrawer) document.getElementById('app').classList.add('drawer-closed');
 }
 
+// Opens every ancestor `.children` wrapper of a row (flipping each ancestor's caret to ▼) so
+// the row is actually visible in the sidebar tree - pure DOM walk, no app-specific state.
+function expandAncestors(rowEl) {
+  let childrenEl = rowEl.closest('.node').parentElement;
+  while (childrenEl && childrenEl.classList.contains('children')) {
+    childrenEl.classList.add('open');
+    const ownerRow = childrenEl.parentElement.querySelector(':scope > .node-row');
+    const caret = ownerRow && ownerRow.querySelector('.caret');
+    if (caret && caret.textContent) caret.textContent = '▼';
+    childrenEl = childrenEl.parentElement.parentElement;
+  }
+}
+
+// The "do what clicking this node's own row would do" entry point for a chip shortcut: reveal
+// it in the tree (and its own children, matching a first real click), scroll it into view, then
+// select it exactly as buildNode's row.onclick would.
+function activateNode(n) {
+  if (!n || !n._row) return;
+  expandAncestors(n._row);
+  if (n._childrenEl) {
+    n._childrenEl.classList.add('open');
+    if (n._caret) n._caret.textContent = '▼';
+  }
+  if (n._row.scrollIntoView) n._row.scrollIntoView({ block: 'center' });
+  n.select(n._row);
+}
+
 const appEl = document.getElementById('app');
 document.getElementById('drawer-close').onclick = () => appEl.classList.add('drawer-closed');
 document.getElementById('drawer-open').onclick = () => appEl.classList.remove('drawer-closed');
@@ -393,6 +436,9 @@ function buildNode(n) {
     n.children.forEach(c => childrenEl.appendChild(buildNode(c)));
     r.div.appendChild(childrenEl);
   }
+  n._row = r.row;
+  n._childrenEl = childrenEl;
+  n._caret = r.caret;
   r.row.onclick = (e) => {
     e.stopPropagation();
     if (childrenEl) {
@@ -412,19 +458,31 @@ function buildTree(containerEl, nodes) {
 // By-theme mode: Theme -> Subtheme -> Code, identical in shape/behavior to the tree this
 // explorer has always shown.
 function themeModeNodes() {
-  return TREE.map(theme => ({
-    label: theme.theme, count: theme.n_submissions, cls: 'theme',
-    select: (row) => select(row, () => renderDetail(theme, 'theme', 'All themes'), false),
-    children: theme.subthemes.map(sub => ({
-      label: sub.subtheme, count: sub.n_submissions, cls: 'subtheme',
-      select: (row) => select(row, () => renderDetail(sub, 'subtheme', theme.theme), false),
-      children: sub.codes.map(code => ({
-        label: code.code, count: code.n_submissions, cls: 'leaf',
-        select: (row) => select(row, () => renderDetail(code, 'code', theme.theme + ' › ' + sub.subtheme), true),
-        children: null,
-      })),
-    })),
-  }));
+  return TREE.map(theme => {
+    const themeNode = {
+      label: theme.theme, count: theme.n_submissions, cls: 'theme',
+      select: (row) => select(row, () => renderDetail(theme, 'theme', 'All themes'), false),
+      children: theme.subthemes.map(sub => {
+        const subNode = {
+          label: sub.subtheme, count: sub.n_submissions, cls: 'subtheme',
+          select: (row) => select(row, () => renderDetail(sub, 'subtheme', theme.theme), false),
+          children: sub.codes.map(code => {
+            const codeNode = {
+              label: code.code, count: code.n_submissions, cls: 'leaf',
+              select: (row) => select(row, () => renderDetail(code, 'code', theme.theme + ' › ' + sub.subtheme), true),
+              children: null,
+            };
+            code._node = codeNode;
+            return codeNode;
+          }),
+        };
+        sub._node = subNode;
+        return subNode;
+      }),
+    };
+    theme._node = themeNode;
+    return themeNode;
+  });
 }
 
 // By-stance mode: computed client-side from the same TREE data, memoized after first use.
@@ -481,7 +539,7 @@ function stanceModeNodes() {
         const subthemes = [...tb.bySubtheme.entries()]
           .map(([sname, sb]) => ({ sname, sb, sstats: statsFromQuotes(sb.quotes) }))
           .sort((a,b) => b.sstats.n_submissions - a.sstats.n_submissions);
-        return {
+        const themeUnderStanceNode = {
           label: name, count: tstats.n_submissions, cls: 'subtheme',
           select: (row) => select(row,
             () => renderStanceGroupedDetail(tb.bySubtheme, stanceLabel(stance), name, tstats), true),
@@ -492,6 +550,8 @@ function stanceModeNodes() {
             children: null,
           })),
         };
+        tb._node = themeUnderStanceNode;
+        return themeUnderStanceNode;
       }),
     };
   });

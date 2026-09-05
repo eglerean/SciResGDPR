@@ -592,36 +592,28 @@ sub_to_theme = nest_by_containment(level2, level1)           # majority containm
     <section id="limitations">
       <div class="eyebrow">Read before citing</div>
       <h2><span class="icon">⚠</span>Limitations and required human quality control</h2>
-      <p>This is a machine-generated reading of the corpus, produced to make 7,116 paragraphs navigable — it is not a substitute for reading the original submissions, and none of the counts, labels, or quotes below should be relied on for a regulatory or legal argument without checking the source PDF first.</p>
+      <p>This is a machine-generated annotation of the corpus, produced to make it easier to navigate through the submissions. It is not a substitute for reading the original submissions, this is why it is important to click on the original PDF links and read the source text and ... judge by yourself.</p>
+
+    
 
       <div class="limit-item">
-        <h3>Extraction errors happen, and were caught, not eliminated</h3>
-        <p>Two concrete bugs surfaced while building this pipeline: adaptive-thinking token usage occasionally truncated a batch's JSON output mid-string, and — more seriously — an early caching scheme let an LLM-generated label from one run silently attach to an unrelated group in a later run (a group about "general endorsement of guidelines" was briefly labelled "scope of scientific research definition"). Both are fixed in the code kept here, but their existence is the point: an LLM pipeline like this one will produce plausible-looking wrong output that passes every automated check. Spot-check, don't assume.</p>
-      </div>
-
-      <div class="limit-item">
-        <h3>Clustering parameters are corpus-specific, not universal constants</h3>
-        <p>Every Leiden resolution value in this pipeline was chosen by sweeping candidate values against this specific corpus's embeddings and reading the resulting groups — not by formula. If the corpus grows, shrinks, or changes composition materially, these values (codebook resolution 80; theme resolutions 2 and 6) will very likely need re-tuning, and skipping that step reproduces the exact over-merging failure documented above.</p>
+        <h3>Limitations of clustering</h3>
+        <p>Every Leiden resolution value in this pipeline was chosen by trying candidate values against this specific corpus's embeddings and reading the resulting groups, so it did not use a formula and most likely it is not generalizable to different corpuses. The goal is to make it easier for the reader to explore the submissions, rather than doing actual synthesis.</p>
       </div>
 
       <div class="limit-item">
         <h3>A handful of canonical codes share an identical label</h3>
-        <p>The LLM naming pass occasionally converges on the same short label for two genuinely distinct Leiden groups (three separate facets of "broad consent," for instance, each legitimately named "broad consent" on independent review). This is not the caching bug above — it is expected behaviour, not an error — but a reader browsing <span class="mono">codebook.xlsx</span> should know that an identical row label does not always mean an identical group.</p>
+        <p>The LLM naming pass occasionally converges on the same short label for two genuinely distinct Leiden groups (three separate facets of "broad consent," for instance, each legitimately named "broad consent" on independent review). This is important to remember when browsing the codes.</p>
       </div>
 
       <div class="limit-item">
-        <h3>Stance counts are not a vote tally</h3>
-        <p>A single detailed submission can contribute dozens of codes; a one-page individual letter contributes a handful. Theme and stance counts in this explorer measure <em>volume of argument</em>, not one-organisation-one-vote — a theme raised by 108 submissions is not necessarily more important to the eventual Guidelines than one raised by 40, if those 40 are the regulators and hospitals whose compliance is actually at stake.</p>
+        <h3>Stances and stance counts are not a vote tally</h3>
+        <p>The stances and stance counts are not quantitative in the sense that they can provide evidence for actual positions taken. The goal is exploration, the reader should judge by themselves if a certain paragraph was proposing a change or opposing the original guidelines.</p>
       </div>
 
       <div class="limit-item">
         <h3>Translation and coding quality on non-English text is not independently verified</h3>
         <p>21 languages appear in the corpus; every code is written in English regardless of source language, by instruction to the coding model, to keep the taxonomy unified. That step's accuracy on Danish, Italian, Portuguese, and other non-English submissions has not been checked against a human bilingual reviewer.</p>
-      </div>
-
-      <div class="limit-item">
-        <h3>Self-selection in who responded</h3>
-        <p>These 132 submissions are self-selected: organisations with the legal capacity and institutional motivation to respond to an EU public consultation. Theme prevalence in this explorer reflects who chose to comment, not the full population of stakeholders affected by the Guidelines.</p>
       </div>
 
       <div class="limit-item">
