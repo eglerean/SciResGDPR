@@ -17,6 +17,11 @@ To only regenerate themes.xlsx/codes.xlsx from an already-computed output/codes_
 (e.g. after changing the summary layout, without re-running Leiden/LLM naming), run:
     python -c "import pandas as pd; from build_themes import write_theme_tables, OUTPUT_DIR; \
                write_theme_tables(pd.read_parquet(OUTPUT_DIR / 'codes_themed.parquet'))"
+
+To only regenerate theme_tree.json from an already-computed output/codes_themed.parquet
+(e.g. after changing the quote fields or grouping logic, without re-running Leiden/LLM naming), run:
+    python -c "import json, pandas as pd; from build_themes import build_theme_tree, OUTPUT_DIR; \
+               (OUTPUT_DIR / 'theme_tree.json').write_text(json.dumps(build_theme_tree(pd.read_parquet(OUTPUT_DIR / 'codes_themed.parquet')), ensure_ascii=False), encoding='utf-8')"
 """
 
 from __future__ import annotations
@@ -186,6 +191,63 @@ def nest_by_containment(child_membership: list[int], parent_membership: list[int
     return {child: Counter(parents).most_common(1)[0][0] for child, parents in buckets.items()}
 
 
+def build_theme_tree(codes_df: pd.DataFrame) -> list:
+    """Nested theme -> subtheme -> canonical-code -> quotes tree for the explorer.
+
+    Callable standalone on a saved output/codes_themed.parquet - see this module's docstring -
+    so theme_tree.json can be regenerated without re-running Leiden/LLM naming.
+    """
+    tree = []
+    for theme, theme_rows in codes_df.groupby("theme"):
+        subthemes = []
+        for subtheme, sub_rows in theme_rows.groupby("subtheme"):
+            leaves = []
+            for code, code_rows in sub_rows.groupby("canonical_code"):
+                # All distinct paragraphs, not a sample - the explorer's "n submissions" stat
+                # must match how many quotes a reader can actually open. Observed max is 52
+                # paragraphs for one code, so this safety cap is generous headroom, not a
+                # real-world limit.
+                quotes = (
+                    code_rows.drop_duplicates("paragraph_id")
+                    .head(300)[[
+                        "paragraph_id", "submission_id", "organisation_name", "organisation_type",
+                        "country", "submission_date", "submitted_by", "source_url", "stance",
+                        "claim", "text",
+                    ]]
+                    .to_dict("records")
+                )
+                leaves.append({
+                    "code": code,
+                    "n_paragraphs": int(code_rows["paragraph_id"].nunique()),
+                    "n_submissions": int(code_rows["submission_id"].nunique()),
+                    "stances": code_rows["stance"].value_counts().to_dict(),
+                    "organisations": sorted(code_rows["organisation_name"].dropna().unique().tolist())[:40],
+                    "countries": sorted(code_rows["country"].dropna().unique().tolist()),
+                    "targets": sorted(code_rows["target"].dropna().unique().tolist())[:25],
+                    "quotes": [
+                        {k: ("" if pd.isna(v) else str(v)) for k, v in q.items()} for q in quotes
+                    ],
+                })
+            leaves.sort(key=lambda x: -x["n_submissions"])
+            subthemes.append({
+                "subtheme": subtheme,
+                "n_paragraphs": int(sub_rows["paragraph_id"].nunique()),
+                "n_submissions": int(sub_rows["submission_id"].nunique()),
+                "stances": sub_rows["stance"].value_counts().to_dict(),
+                "codes": leaves,
+            })
+        subthemes.sort(key=lambda x: -x["n_submissions"])
+        tree.append({
+            "theme": theme,
+            "n_paragraphs": int(theme_rows["paragraph_id"].nunique()),
+            "n_submissions": int(theme_rows["submission_id"].nunique()),
+            "stances": theme_rows["stance"].value_counts().to_dict(),
+            "subthemes": subthemes,
+        })
+    tree.sort(key=lambda x: -x["n_submissions"])
+    return tree
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolutions", type=float, nargs=2, default=[2.0, 6.0],
@@ -267,54 +329,7 @@ def main():
 
     write_theme_tables(codes_df)
 
-    # Nested tree for the explorer.
-    tree = []
-    for theme, theme_rows in codes_df.groupby("theme"):
-        subthemes = []
-        for subtheme, sub_rows in theme_rows.groupby("subtheme"):
-            leaves = []
-            for code, code_rows in sub_rows.groupby("canonical_code"):
-                # All distinct paragraphs, not a sample - the explorer's "n submissions" stat
-                # must match how many quotes a reader can actually open. Observed max is 52
-                # paragraphs for one code, so this safety cap is generous headroom, not a
-                # real-world limit.
-                quotes = (
-                    code_rows.drop_duplicates("paragraph_id")
-                    .head(300)[[
-                        "paragraph_id", "organisation_name", "organisation_type", "country",
-                        "submission_date", "submitted_by", "source_url", "stance", "claim", "text",
-                    ]]
-                    .to_dict("records")
-                )
-                leaves.append({
-                    "code": code,
-                    "n_paragraphs": int(code_rows["paragraph_id"].nunique()),
-                    "n_submissions": int(code_rows["submission_id"].nunique()),
-                    "stances": code_rows["stance"].value_counts().to_dict(),
-                    "organisations": sorted(code_rows["organisation_name"].dropna().unique().tolist())[:40],
-                    "countries": sorted(code_rows["country"].dropna().unique().tolist()),
-                    "targets": sorted(code_rows["target"].dropna().unique().tolist())[:25],
-                    "quotes": [
-                        {k: ("" if pd.isna(v) else str(v)) for k, v in q.items()} for q in quotes
-                    ],
-                })
-            leaves.sort(key=lambda x: -x["n_submissions"])
-            subthemes.append({
-                "subtheme": subtheme,
-                "n_paragraphs": int(sub_rows["paragraph_id"].nunique()),
-                "n_submissions": int(sub_rows["submission_id"].nunique()),
-                "stances": sub_rows["stance"].value_counts().to_dict(),
-                "codes": leaves,
-            })
-        subthemes.sort(key=lambda x: -x["n_submissions"])
-        tree.append({
-            "theme": theme,
-            "n_paragraphs": int(theme_rows["paragraph_id"].nunique()),
-            "n_submissions": int(theme_rows["submission_id"].nunique()),
-            "stances": theme_rows["stance"].value_counts().to_dict(),
-            "subthemes": subthemes,
-        })
-    tree.sort(key=lambda x: -x["n_submissions"])
+    tree = build_theme_tree(codes_df)
     (OUTPUT_DIR / "theme_tree.json").write_text(json.dumps(tree, ensure_ascii=False), encoding="utf-8")
 
     print(f"\nWrote themes.xlsx, codes.xlsx, theme_tree.json")

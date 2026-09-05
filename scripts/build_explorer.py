@@ -97,9 +97,14 @@ __HEADER_CSS__
   #sidebar { width: 420px; flex-shrink: 0; border-right: 1px solid var(--line); overflow-y: auto;
              background: var(--panel); }
   #detail { flex: 1; overflow-y: auto; padding: 24px 28px; }
-  #sidebar h1 { font-size: 15px; margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line);
+  #sidebar h1 { font-size: 15px; margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--line);
        position: sticky; top: 0; background: var(--panel); z-index: 2; }
-  #sidebar h1 small { display: block; color: var(--muted); font-weight: 400; margin-top: 3px; font-size: 12px; }
+  #sidebar h1 .h1-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #subtitle-row { display: block; color: var(--muted); font-weight: 400; margin-top: 5px; font-size: 12px; }
+  .mode-toggle { display: flex; gap: 4px; }
+  .mode-btn { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 12px;
+              border: 1px solid var(--line); background: #fff; color: var(--muted); cursor: pointer; }
+  .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   #drawer-close, #drawer-open { display: none; }
   .node { cursor: pointer; user-select: none; }
   .node-row { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 5px; }
@@ -142,6 +147,8 @@ __HEADER_CSS__
   .crumb { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
   section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
                margin: 22px 0 8px; }
+  section h3 .count { text-transform: none; letter-spacing: normal; }
+  section h4 { font-size: 13.5px; font-weight: 600; color: var(--fg); margin: 14px 0 6px; }
   .empty { color: var(--muted); margin-top: 60px; text-align: center; }
 
   /* Phone portrait: the theme tree becomes a drawer over the detail panel rather than a fixed
@@ -157,7 +164,6 @@ __HEADER_CSS__
       transition: transform 0.25s ease;
     }
     #app.drawer-closed #sidebar { transform: translateX(-100%); }
-    #sidebar h1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     #drawer-close {
       display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
       width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line);
@@ -178,7 +184,16 @@ __HEADER_CSS__
 __HEADER_HTML__
 <div id="app">
   <div id="sidebar">
-    <h1><span>Themes<small id="subtitle"></small></span><button id="drawer-close" aria-label="Close theme menu" title="Close">✕</button></h1>
+    <h1>
+      <div class="h1-row">
+        <div class="mode-toggle" id="mode-toggle">
+          <button class="mode-btn active" data-mode="theme">By theme</button>
+          <button class="mode-btn" data-mode="stance">By stance</button>
+        </div>
+        <button id="drawer-close" aria-label="Close theme menu" title="Close">✕</button>
+      </div>
+      <div id="subtitle-row"><small id="subtitle"></small></div>
+    </h1>
     <div id="tree"></div>
   </div>
   <button id="drawer-open" aria-label="Open theme menu">☰ Themes</button>
@@ -218,16 +233,58 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
+function stanceLabel(s) {
+  return s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function statRowHtml(n_submissions, n_paragraphs, extraHtml) {
+  return '<div class="stat-row">' +
+    '<div class="stat"><div class="v">' + n_submissions + '</div><div class="k">submissions</div></div>' +
+    '<div class="stat"><div class="v">' + n_paragraphs + '</div><div class="k">paragraphs</div></div>' +
+    (extraHtml || '') + '</div>';
+}
+
+function renderQuoteCards(quotes) {
+  let html = '';
+  quotes.forEach(q => {
+    const sourceLink = q.source_url
+      ? '<a class="source-link" href="' + esc(q.source_url) + '" target="_blank" rel="noopener">View original PDF ↗</a>'
+      : '';
+    html += '<div class="quote">' +
+      '<div class="meta"><span class="badge" style="background:' + (COLORS[q.stance] || '#999') + '">' +
+        esc(q.stance).replace(/_/g,' ') + '</span> ' +
+        esc(q.organisation_name) + (q.country ? ' · ' + esc(q.country) : '') +
+        ' · <code>' + esc(q.paragraph_id) + '</code></div>' +
+      '<div class="meta2">' +
+        (q.organisation_type ? '<span class="badge-outline">' + esc(q.organisation_type) + '</span>' : '') +
+        (q.submission_date ? '<span>' + esc(q.submission_date) + '</span>' : '') +
+        (sourceLink ? '<span>' + sourceLink + '</span>' : '') +
+      '</div>' +
+      '<div class="claim">' + esc(q.claim) + '</div>' +
+      '<div class="text">' + esc(q.text) + '</div>' +
+      '<div class="more">show full paragraph</div></div>';
+  });
+  return html;
+}
+
+function wireQuoteExpanders(container) {
+  container.querySelectorAll('.more').forEach(el => {
+    el.onclick = () => {
+      const t = el.previousElementSibling;
+      t.classList.toggle('expanded');
+      el.textContent = t.classList.contains('expanded') ? 'collapse' : 'show full paragraph';
+    };
+  });
+}
+
 function renderDetail(node, kind, crumb) {
   const d = document.getElementById('detail');
   const title = node.theme || node.subtheme || node.code;
+  let extra = '';
+  if (kind === 'theme') extra = '<div class="stat"><div class="v">' + node.subthemes.length + '</div><div class="k">subthemes</div></div>';
+  if (kind === 'subtheme') extra = '<div class="stat"><div class="v">' + node.codes.length + '</div><div class="k">codes</div></div>';
   let html = '<div class="crumb">' + esc(crumb) + '</div><h2>' + esc(title) + '</h2>';
-  html += '<div class="stat-row">' +
-    '<div class="stat"><div class="v">' + node.n_submissions + '</div><div class="k">submissions</div></div>' +
-    '<div class="stat"><div class="v">' + node.n_paragraphs + '</div><div class="k">paragraphs</div></div>';
-  if (kind === 'theme') html += '<div class="stat"><div class="v">' + node.subthemes.length + '</div><div class="k">subthemes</div></div>';
-  if (kind === 'subtheme') html += '<div class="stat"><div class="v">' + node.codes.length + '</div><div class="k">codes</div></div>';
-  html += '</div>';
+  html += statRowHtml(node.n_submissions, node.n_paragraphs, extra);
   html += stanceBar(node.stances || {});
 
   if (kind === 'theme') {
@@ -250,46 +307,59 @@ function renderDetail(node, kind, crumb) {
     if (node.targets && node.targets.length)
       html += '<section><h3>Provisions cited</h3><div class="chips">' +
         node.targets.map(t => '<span class="chip">' + esc(t) + '</span>').join('') + '</div></section>';
-    html += '<section><h3>Representative comments</h3>';
-    node.quotes.forEach(q => {
-      const sourceLink = q.source_url
-        ? '<a class="source-link" href="' + esc(q.source_url) + '" target="_blank" rel="noopener">View original PDF ↗</a>'
-        : '';
-      html += '<div class="quote">' +
-        '<div class="meta"><span class="badge" style="background:' + (COLORS[q.stance] || '#999') + '">' +
-          esc(q.stance).replace(/_/g,' ') + '</span> ' +
-          esc(q.organisation_name) + (q.country ? ' · ' + esc(q.country) : '') +
-          ' · <code>' + esc(q.paragraph_id) + '</code></div>' +
-        '<div class="meta2">' +
-          (q.organisation_type ? '<span class="badge-outline">' + esc(q.organisation_type) + '</span>' : '') +
-          (q.submission_date ? '<span>' + esc(q.submission_date) + '</span>' : '') +
-          (sourceLink ? '<span>' + sourceLink + '</span>' : '') +
-        '</div>' +
-        '<div class="claim">' + esc(q.claim) + '</div>' +
-        '<div class="text">' + esc(q.text) + '</div>' +
-        '<div class="more">show full paragraph</div></div>';
-    });
-    html += '</section>';
+    html += '<section><h3>Representative comments</h3>' + renderQuoteCards(node.quotes) + '</section>';
   }
   d.innerHTML = html;
-  d.querySelectorAll('.more').forEach(el => {
-    el.onclick = () => {
-      const t = el.previousElementSibling;
-      t.classList.toggle('expanded');
-      el.textContent = t.classList.contains('expanded') ? 'collapse' : 'show full paragraph';
-    };
-  });
+  wireQuoteExpanders(d);
   d.scrollTop = 0;
 }
 
-function select(row, node, kind, crumb) {
+function renderStanceRoot(stance, bucket) {
+  const d = document.getElementById('detail');
+  const stats = statsFromQuotes(bucket.quotes);
+  let html = '<div class="crumb">All stances</div>' +
+    '<h2><span class="badge" style="background:' + (COLORS[stance] || '#999') + '">' + esc(stanceLabel(stance)) + '</span></h2>';
+  html += statRowHtml(stats.n_submissions, stats.n_paragraphs, '');
+  const themes = [...bucket.byTheme.entries()]
+    .map(([name, tb]) => ({ name, stats: statsFromQuotes(tb.quotes) }))
+    .sort((a,b) => b.stats.n_submissions - a.stats.n_submissions);
+  html += '<section><h3>Themes</h3><div class="chips">' +
+    themes.map(t => '<span class="chip">' + esc(t.name) + ' · ' + t.stats.n_submissions + '</span>').join('') +
+    '</div></section>';
+  d.innerHTML = html;
+  d.scrollTop = 0;
+}
+
+function renderStanceGroupedDetail(subthemeMap, crumb, title, stats) {
+  const d = document.getElementById('detail');
+  let html = '<div class="crumb">' + esc(crumb) + '</div><h2>' + esc(title) + '</h2>';
+  html += statRowHtml(stats.n_submissions, stats.n_paragraphs, '');
+
+  const subthemes = [...subthemeMap.entries()]
+    .map(([name, sb]) => ({ name, sb, stats: statsFromQuotes(sb.quotes) }))
+    .sort((a,b) => b.stats.n_submissions - a.stats.n_submissions);
+
+  subthemes.forEach(({ name, sb, stats: sstats }) => {
+    html += '<section><h3>' + esc(name) + ' <span class="count">(' + sstats.n_submissions + ')</span></h3>';
+    const codes = [...sb.byCode.entries()].sort((a,b) => b[1].n_submissions_rank - a[1].n_submissions_rank);
+    codes.forEach(([codeName, cb]) => {
+      html += '<h4>' + esc(codeName) + '</h4>' + renderQuoteCards(cb.quotes);
+    });
+    html += '</section>';
+  });
+  d.innerHTML = html;
+  wireQuoteExpanders(d);
+  d.scrollTop = 0;
+}
+
+function select(row, renderFn, autoCloseDrawer) {
   document.querySelectorAll('.node-row.selected').forEach(r => r.classList.remove('selected'));
   row.classList.add('selected');
-  renderDetail(node, kind, crumb);
-  // On phone-portrait the tree is a drawer over the detail panel; a code is the only kind of
-  // node with excerpts to read, so picking one is the moment to get the drawer out of the way.
+  renderFn();
+  // On phone-portrait the tree is a drawer over the detail panel; the caller decides whether
+  // this selection is "read the excerpts now" (close it) or just a summary view (leave it open).
   // A no-op on desktop, where the media query never applies the drawer-closed transform.
-  if (kind === 'code') document.getElementById('app').classList.add('drawer-closed');
+  if (autoCloseDrawer) document.getElementById('app').classList.add('drawer-closed');
 }
 
 const appEl = document.getElementById('app');
@@ -308,44 +378,140 @@ function makeRow(label, count, cls, hasChildren) {
   return { div, row, caret: row.querySelector('.caret') };
 }
 
-const treeEl = document.getElementById('tree');
-TREE.forEach(theme => {
-  const t = makeRow(theme.theme, theme.n_submissions, 'theme', true);
-  const tChildren = document.createElement('div');
-  tChildren.className = 'children';
-
-  theme.subthemes.forEach(sub => {
-    const s = makeRow(sub.subtheme, sub.n_submissions, 'subtheme', sub.codes.length > 0);
-    const sChildren = document.createElement('div');
-    sChildren.className = 'children';
-
-    sub.codes.forEach(code => {
-      const c = makeRow(code.code, code.n_submissions, 'leaf', false);
-      c.row.onclick = (e) => {
-        e.stopPropagation();
-        select(c.row, code, 'code', theme.theme + ' › ' + sub.subtheme);
-      };
-      sChildren.appendChild(c.div);
-    });
-
-    s.row.onclick = (e) => {
-      e.stopPropagation();
-      sChildren.classList.toggle('open');
-      s.caret.textContent = sChildren.classList.contains('open') ? '▼' : '▶';
-      select(s.row, sub, 'subtheme', theme.theme);
-    };
-    s.div.appendChild(sChildren);
-    tChildren.appendChild(s.div);
-  });
-
-  t.row.onclick = () => {
-    tChildren.classList.toggle('open');
-    t.caret.textContent = tChildren.classList.contains('open') ? '▼' : '▶';
-    select(t.row, theme, 'theme', 'All themes');
+// Generic nested-tree renderer, shared by both browsing modes. A node is
+// {label, count, cls, children: [...]|null, select: (row) => void}; cls ('theme'/'subtheme'/'leaf')
+// is picked by tree POSITION (level 0/1/2), not by what kind of entity occupies that position -
+// that's what lets by-theme mode (Theme/Subtheme/Code) and by-stance mode (Stance/Theme/Subtheme)
+// share the exact same indentation/caret/expand-collapse CSS and code.
+function buildNode(n) {
+  const hasChildren = !!(n.children && n.children.length);
+  const r = makeRow(n.label, n.count, n.cls, hasChildren);
+  let childrenEl = null;
+  if (hasChildren) {
+    childrenEl = document.createElement('div');
+    childrenEl.className = 'children';
+    n.children.forEach(c => childrenEl.appendChild(buildNode(c)));
+    r.div.appendChild(childrenEl);
+  }
+  r.row.onclick = (e) => {
+    e.stopPropagation();
+    if (childrenEl) {
+      childrenEl.classList.toggle('open');
+      r.caret.textContent = childrenEl.classList.contains('open') ? '▼' : '▶';
+    }
+    if (n.select) n.select(r.row);
   };
-  t.div.appendChild(tChildren);
-  treeEl.appendChild(t.div);
+  return r.div;
+}
+
+function buildTree(containerEl, nodes) {
+  containerEl.innerHTML = '';
+  nodes.forEach(n => containerEl.appendChild(buildNode(n)));
+}
+
+// By-theme mode: Theme -> Subtheme -> Code, identical in shape/behavior to the tree this
+// explorer has always shown.
+function themeModeNodes() {
+  return TREE.map(theme => ({
+    label: theme.theme, count: theme.n_submissions, cls: 'theme',
+    select: (row) => select(row, () => renderDetail(theme, 'theme', 'All themes'), false),
+    children: theme.subthemes.map(sub => ({
+      label: sub.subtheme, count: sub.n_submissions, cls: 'subtheme',
+      select: (row) => select(row, () => renderDetail(sub, 'subtheme', theme.theme), false),
+      children: sub.codes.map(code => ({
+        label: code.code, count: code.n_submissions, cls: 'leaf',
+        select: (row) => select(row, () => renderDetail(code, 'code', theme.theme + ' › ' + sub.subtheme), true),
+        children: null,
+      })),
+    })),
+  }));
+}
+
+// By-stance mode: computed client-side from the same TREE data, memoized after first use.
+// Buckets every quote by stance, then by the theme/subtheme/code it came from, so the reader
+// can ask "show me everything labelled oppose" and drill Theme -> Subtheme from there.
+let STANCE_TREE = null;
+
+function statsFromQuotes(quotes) {
+  const subs = new Set(), paras = new Set();
+  quotes.forEach(q => { subs.add(q.submission_id); paras.add(q.paragraph_id); });
+  return { n_submissions: subs.size, n_paragraphs: paras.size };
+}
+
+function computeStanceTree() {
+  const byStance = {};
+  TREE.forEach(theme => {
+    theme.subthemes.forEach(sub => {
+      sub.codes.forEach(code => {
+        code.quotes.forEach(q => {
+          const st = q.stance;
+          if (!byStance[st]) byStance[st] = { quotes: [], byTheme: new Map() };
+          const bucket = byStance[st];
+          const aq = Object.assign({}, q, {
+            _theme: theme.theme, _subtheme: sub.subtheme, _code: code.code, _codeRank: code.n_submissions,
+          });
+          bucket.quotes.push(aq);
+          if (!bucket.byTheme.has(theme.theme)) bucket.byTheme.set(theme.theme, { quotes: [], bySubtheme: new Map() });
+          const tb = bucket.byTheme.get(theme.theme);
+          tb.quotes.push(aq);
+          if (!tb.bySubtheme.has(sub.subtheme)) tb.bySubtheme.set(sub.subtheme, { quotes: [], byCode: new Map() });
+          const sb = tb.bySubtheme.get(sub.subtheme);
+          sb.quotes.push(aq);
+          if (!sb.byCode.has(code.code)) sb.byCode.set(code.code, { quotes: [], n_submissions_rank: code.n_submissions });
+          sb.byCode.get(code.code).quotes.push(aq);
+        });
+      });
+    });
+  });
+  return byStance;
+}
+
+function stanceModeNodes() {
+  if (!STANCE_TREE) STANCE_TREE = computeStanceTree();
+  return STANCE_ORDER.filter(s => STANCE_TREE[s]).map(stance => {
+    const bucket = STANCE_TREE[stance];
+    const stats = statsFromQuotes(bucket.quotes);
+    const themes = [...bucket.byTheme.entries()]
+      .map(([name, tb]) => ({ name, tb, stats: statsFromQuotes(tb.quotes) }))
+      .sort((a,b) => b.stats.n_submissions - a.stats.n_submissions);
+    return {
+      label: stanceLabel(stance), count: stats.n_submissions, cls: 'theme',
+      select: (row) => select(row, () => renderStanceRoot(stance, bucket), false),
+      children: themes.map(({ name, tb, stats: tstats }) => {
+        const subthemes = [...tb.bySubtheme.entries()]
+          .map(([sname, sb]) => ({ sname, sb, sstats: statsFromQuotes(sb.quotes) }))
+          .sort((a,b) => b.sstats.n_submissions - a.sstats.n_submissions);
+        return {
+          label: name, count: tstats.n_submissions, cls: 'subtheme',
+          select: (row) => select(row,
+            () => renderStanceGroupedDetail(tb.bySubtheme, stanceLabel(stance), name, tstats), true),
+          children: subthemes.map(({ sname, sb, sstats }) => ({
+            label: sname, count: sstats.n_submissions, cls: 'leaf',
+            select: (row) => select(row, () => renderStanceGroupedDetail(
+              new Map([[sname, sb]]), stanceLabel(stance) + ' › ' + name, sname, sstats), true),
+            children: null,
+          })),
+        };
+      }),
+    };
+  });
+}
+
+const treeEl = document.getElementById('tree');
+const detailEl = document.getElementById('detail');
+const EMPTY_DETAIL_HTML = '<div class="empty">Select a theme, subtheme or code on the left.</div>';
+
+function setMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  buildTree(treeEl, mode === 'stance' ? stanceModeNodes() : themeModeNodes());
+  detailEl.innerHTML = EMPTY_DETAIL_HTML;
+}
+document.getElementById('mode-toggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('.mode-btn');
+  if (btn) setMode(btn.dataset.mode);
 });
+
+setMode('theme');
 </script>
 </body>
 </html>
