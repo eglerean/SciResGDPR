@@ -430,12 +430,12 @@
       <div class="stat-row">
         <div class="stat-tile"><div class="v">132</div><div class="k">Submissions</div></div>
         <div class="stat-tile"><div class="v">7,116</div><div class="k">Paragraphs</div></div>
-        <div class="stat-tile"><div class="v">21</div><div class="k">Languages</div></div>
+        <div class="stat-tile"><div class="v">6</div><div class="k">Languages</div></div>
         <div class="stat-tile"><div class="v">565</div><div class="k">Canonical codes</div></div>
         <div class="stat-tile"><div class="v">17</div><div class="k">Themes</div></div>
       </div>
 
-      <p class="lede">The EDPB's consultation drew 132 written submissions — universities, hospitals, industry associations, national data protection authorities, and individuals — responding in 21 languages to a single question: how should the GDPR apply to scientific research? The goal of this pipeline was to surface the arguments that recur across that corpus without flattening the disagreements inside them.</p>
+      <p class="lede">The EDPB's consultation drew 132 written submissions — universities, hospitals, industry associations, national data protection authorities, and individuals — responding in 6 languages (English, Italian, Danish, French, Portuguese, Spanish) to a single question: how should the GDPR apply to scientific research? The goal of this pipeline was to surface the arguments that recur across that corpus without flattening the disagreements inside them.</p>
 
       <figure>
         <svg viewBox="0 0 1180 200" role="img" aria-label="Pipeline diagram: PDFs are segmented into paragraphs, paragraphs are opened into atomic codes by an LLM, near-duplicate codes are merged into a canonical codebook, the codebook is clustered into a theme hierarchy, and the hierarchy is rendered as a static explorer.">
@@ -653,7 +653,7 @@ sub_to_theme = nest_by_containment(level2, level1)           # majority containm
 
       <div class="limit-item">
         <h3>Translation and coding quality on non-English text is not independently verified</h3>
-        <p>21 languages appear in the corpus; every code is written in English regardless of source language, by instruction to the coding model, to keep the taxonomy unified. That step's accuracy on Danish, Italian, Portuguese, and other non-English submissions has not been checked against a human bilingual reviewer.</p>
+        <p>7 of 132 submissions are written mainly in a language other than English (Italian, Danish, French, Portuguese, Spanish); every code is written in English regardless of source language, by instruction to the coding model, to keep the taxonomy unified. That step's accuracy on non-English submissions has not been checked against a human bilingual reviewer. (An earlier version of this page put the language count at 21: that number came from counting every distinct <code>langdetect</code> code seen across individual paragraphs, most of which were single-paragraph misdetections — short citations, signature blocks, names — rather than submissions actually written in that language. Counting each submission's dominant language by character count gives 6.)</p>
       </div>
 
       <div class="limit-item">
